@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroAnimatedComponent = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroAnimatedComponent is a component for creating animated components.
  * It allows you to apply animations to any Viro component.
@@ -25,28 +26,30 @@ const ViroAnimatedComponent = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("animatedComponent", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro || !props.animation)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro || !props.animation)
             return;
         // Register event handlers if provided
         if (props.animation.onStart) {
             const callbackId = `${nodeId}_animation_start`;
-            global.NativeViro.registerEventCallback(nodeId, "onAnimationStart", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAnimationStart", callbackId);
         }
         if (props.animation.onFinish) {
             const callbackId = `${nodeId}_animation_finish`;
-            global.NativeViro.registerEventCallback(nodeId, "onAnimationFinish", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAnimationFinish", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro || !props.animation)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro || !props.animation)
                 return;
             if (props.animation.onStart) {
                 const callbackId = `${nodeId}_animation_start`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAnimationStart", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAnimationStart", callbackId);
             }
             if (props.animation.onFinish) {
                 const callbackId = `${nodeId}_animation_finish`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAnimationFinish", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAnimationFinish", callbackId);
             }
         };
     }, [nodeId, props.animation]);

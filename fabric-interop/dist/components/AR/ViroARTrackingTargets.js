@@ -9,6 +9,8 @@ exports.registerTargets = registerTargets;
 exports.getTarget = getTarget;
 exports.getAllTargets = getAllTargets;
 exports.clearTargets = clearTargets;
+exports.deleteTarget = deleteTarget;
+const ViroGlobal_1 = require("../ViroGlobal");
 // Tracking target registry
 const targets = {};
 /**
@@ -21,8 +23,9 @@ function registerTargets(targetMap) {
         targets[name] = definition;
     });
     // Register with native code if available
-    if (global.NativeViro) {
-        global.NativeViro.setViroARImageTargets(targets);
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        nativeViro.setViroARImageTargets(targets);
     }
 }
 /**
@@ -49,8 +52,24 @@ function clearTargets() {
         delete targets[key];
     });
     // Clear native code if available
-    if (global.NativeViro) {
-        global.NativeViro.setViroARImageTargets({});
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        nativeViro.setViroARImageTargets({});
+    }
+}
+/**
+ * Delete a specific tracking target.
+ * @param targetName The name of the tracking target to delete.
+ */
+function deleteTarget(targetName) {
+    // Remove the target from the registry
+    delete targets[targetName];
+    // Update native code if available
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        // Since there's no direct method to delete a single target,
+        // we re-register all remaining targets
+        nativeViro.setViroARImageTargets(targets);
     }
 }
 // Export the tracking targets object as the default export
@@ -59,6 +78,9 @@ const ViroARTrackingTargets = {
     getTarget,
     getAllTargets,
     clearTargets,
+    deleteTarget,
+    // Add createTargets as an alias for registerTargets for backward compatibility
+    createTargets: registerTargets,
 };
 exports.default = ViroARTrackingTargets;
 //# sourceMappingURL=ViroARTrackingTargets.js.map

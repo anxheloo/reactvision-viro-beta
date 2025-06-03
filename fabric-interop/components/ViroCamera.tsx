@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 // Custom type for transform update event
 export type ViroCameraTransformUpdateEvent = {
@@ -59,25 +60,23 @@ export const ViroCamera: React.FC<ViroCameraProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onTransformUpdate) {
       const callbackId = `${nodeId}_transform_update`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onTransformUpdate",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onTransformUpdate", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onTransformUpdate) {
         const callbackId = `${nodeId}_transform_update`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onTransformUpdate",
           callbackId

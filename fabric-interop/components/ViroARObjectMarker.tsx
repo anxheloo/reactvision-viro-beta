@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroARObjectMarkerProps extends ViroCommonProps {
   // Object marker properties
@@ -47,52 +48,38 @@ export const ViroARObjectMarker: React.FC<ViroARObjectMarkerProps> = (
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onAnchorFound) {
       const callbackId = `${nodeId}_anchor_found`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onAnchorFound",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onAnchorFound", callbackId);
     }
 
     if (props.onAnchorUpdated) {
       const callbackId = `${nodeId}_anchor_updated`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onAnchorUpdated",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onAnchorUpdated", callbackId);
     }
 
     if (props.onAnchorRemoved) {
       const callbackId = `${nodeId}_anchor_removed`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onAnchorRemoved",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onAnchorRemoved", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onAnchorFound) {
         const callbackId = `${nodeId}_anchor_found`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onAnchorFound",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onAnchorFound", callbackId);
       }
 
       if (props.onAnchorUpdated) {
         const callbackId = `${nodeId}_anchor_updated`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onAnchorUpdated",
           callbackId
@@ -101,7 +88,7 @@ export const ViroARObjectMarker: React.FC<ViroARObjectMarkerProps> = (
 
       if (props.onAnchorRemoved) {
         const callbackId = `${nodeId}_anchor_removed`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onAnchorRemoved",
           callbackId

@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroController = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroController is a component for handling VR controller input.
  * It represents a physical VR controller in the virtual environment.
@@ -32,60 +33,62 @@ const ViroController = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("controller", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onClick) {
             const callbackId = `${nodeId}_click`;
-            global.NativeViro.registerEventCallback(nodeId, "onClick", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onClick", callbackId);
         }
         if (props.onDrag) {
             const callbackId = `${nodeId}_drag`;
-            global.NativeViro.registerEventCallback(nodeId, "onDrag", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onDrag", callbackId);
         }
         if (props.onFuse) {
             const callbackId = `${nodeId}_fuse`;
-            global.NativeViro.registerEventCallback(nodeId, "onFuse", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onFuse", callbackId);
         }
         if (props.onPinch) {
             const callbackId = `${nodeId}_pinch`;
-            global.NativeViro.registerEventCallback(nodeId, "onPinch", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onPinch", callbackId);
         }
         if (props.onRotate) {
             const callbackId = `${nodeId}_rotate`;
-            global.NativeViro.registerEventCallback(nodeId, "onRotate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onRotate", callbackId);
         }
         if (props.onControllerStatus) {
             const callbackId = `${nodeId}_controller_status`;
-            global.NativeViro.registerEventCallback(nodeId, "onControllerStatus", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onControllerStatus", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onClick) {
                 const callbackId = `${nodeId}_click`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
             }
             if (props.onDrag) {
                 const callbackId = `${nodeId}_drag`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onDrag", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onDrag", callbackId);
             }
             if (props.onFuse) {
                 const callbackId = `${nodeId}_fuse`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onFuse", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onFuse", callbackId);
             }
             if (props.onPinch) {
                 const callbackId = `${nodeId}_pinch`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onPinch", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onPinch", callbackId);
             }
             if (props.onRotate) {
                 const callbackId = `${nodeId}_rotate`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onRotate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onRotate", callbackId);
             }
             if (props.onControllerStatus) {
                 const callbackId = `${nodeId}_controller_status`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onControllerStatus", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onControllerStatus", callbackId);
             }
         };
     }, [

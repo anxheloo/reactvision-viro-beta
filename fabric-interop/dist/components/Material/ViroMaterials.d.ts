@@ -50,11 +50,18 @@ export declare function getAllMaterials(): Record<string, ViroMaterialDefinition
  * @param definition The new material definition.
  */
 export declare function updateMaterial(name: string, definition: ViroMaterialDefinition): void;
+/**
+ * Delete materials from the Viro system.
+ * @param materialNames An array of material names to delete.
+ */
+export declare function deleteMaterials(materialNames: string[]): void;
 declare const ViroMaterials: {
     registerMaterials: typeof registerMaterials;
     getMaterial: typeof getMaterial;
     getAllMaterials: typeof getAllMaterials;
     updateMaterial: typeof updateMaterial;
+    deleteMaterials: typeof deleteMaterials;
+    createMaterials: typeof registerMaterials;
 };
 export default ViroMaterials;
 //# sourceMappingURL=ViroMaterials.d.ts.map

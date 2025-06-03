@@ -55,6 +55,7 @@ export { ViroSpatialSound } from "./ViroSpatialSound";
 // Interactive components
 export { ViroButton } from "./ViroButton";
 export { ViroController } from "./ViroController";
+export { ViroSpinner } from "./ViroSpinner";
 
 // Effects
 export { ViroParticleEmitter } from "./ViroParticleEmitter";
@@ -65,10 +66,12 @@ export { ViroMaterialVideo } from "./ViroMaterialVideo";
 export { ViroSceneNavigator } from "./ViroSceneNavigator";
 export { ViroVRSceneNavigator } from "./ViroVRSceneNavigator";
 export { ViroARSceneNavigator } from "./ViroARSceneNavigator";
+export { Viro3DSceneNavigator } from "./Viro3DSceneNavigator";
 
 // AR components
 export { ViroARCamera } from "./ViroARCamera";
-export { ViroARPlane } from "./ViroARPlane";
+export { ViroARPlane } from "./AR/ViroARPlane";
+export { ViroARPlaneSelector } from "./AR/ViroARPlaneSelector";
 export { ViroARImageMarker } from "./ViroARImageMarker";
 export { ViroARObjectMarker } from "./ViroARObjectMarker";
 

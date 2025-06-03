@@ -4,6 +4,8 @@
  * A utility for creating and managing animations.
  */
 
+import { getNativeViro } from "../ViroGlobal";
+
 // Animation types
 export type ViroAnimationTimingFunction =
   | "Linear"
@@ -35,8 +37,9 @@ export function registerAnimations(
     animations[name] = definition;
 
     // Register with native code if available
-    if (global.NativeViro) {
-      global.NativeViro.createViroAnimation(name, definition);
+    const nativeViro = getNativeViro();
+    if (nativeViro) {
+      nativeViro.createViroAnimation(name, definition);
     }
   });
 }
@@ -76,9 +79,10 @@ export function executeAnimation(
     onFinish?: () => void;
   } = {}
 ): void {
-  if (!global.NativeViro) return;
+  const nativeViro = getNativeViro();
+  if (!nativeViro) return;
 
-  global.NativeViro.executeViroAnimation(nodeId, animationName, options);
+  nativeViro.executeViroAnimation(nodeId, animationName, options);
 }
 
 // Export the animations object as the default export

@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroScene = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroScene is a container for 3D content in the Viro scene graph.
  */
@@ -33,36 +34,38 @@ const ViroScene = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("scene", nativeProps);
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onPlatformUpdate) {
             const callbackId = `${nodeId}_platform_update`;
-            global.NativeViro.registerEventCallback(nodeId, "onPlatformUpdate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onPlatformUpdate", callbackId);
         }
         if (props.onCameraTransformUpdate) {
             const callbackId = `${nodeId}_camera_transform_update`;
-            global.NativeViro.registerEventCallback(nodeId, "onCameraTransformUpdate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onCameraTransformUpdate", callbackId);
         }
         if (props.onAmbientLightUpdate) {
             const callbackId = `${nodeId}_ambient_light_update`;
-            global.NativeViro.registerEventCallback(nodeId, "onAmbientLightUpdate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAmbientLightUpdate", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onPlatformUpdate) {
                 const callbackId = `${nodeId}_platform_update`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onPlatformUpdate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onPlatformUpdate", callbackId);
             }
             if (props.onCameraTransformUpdate) {
                 const callbackId = `${nodeId}_camera_transform_update`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onCameraTransformUpdate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onCameraTransformUpdate", callbackId);
             }
             if (props.onAmbientLightUpdate) {
                 const callbackId = `${nodeId}_ambient_light_update`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAmbientLightUpdate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAmbientLightUpdate", callbackId);
             }
         };
     }, [

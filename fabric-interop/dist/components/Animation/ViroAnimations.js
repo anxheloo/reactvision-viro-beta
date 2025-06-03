@@ -9,6 +9,7 @@ exports.registerAnimations = registerAnimations;
 exports.getAnimation = getAnimation;
 exports.getAllAnimations = getAllAnimations;
 exports.executeAnimation = executeAnimation;
+const ViroGlobal_1 = require("../ViroGlobal");
 // Animation registry
 const animations = {};
 /**
@@ -20,8 +21,9 @@ function registerAnimations(animationMap) {
     Object.entries(animationMap).forEach(([name, definition]) => {
         animations[name] = definition;
         // Register with native code if available
-        if (global.NativeViro) {
-            global.NativeViro.createViroAnimation(name, definition);
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (nativeViro) {
+            nativeViro.createViroAnimation(name, definition);
         }
     });
 }
@@ -47,9 +49,10 @@ function getAllAnimations() {
  * @param options Options for the animation execution.
  */
 function executeAnimation(nodeId, animationName, options = {}) {
-    if (!global.NativeViro)
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (!nativeViro)
         return;
-    global.NativeViro.executeViroAnimation(nodeId, animationName, options);
+    nativeViro.executeViroAnimation(nodeId, animationName, options);
 }
 // Export the animations object as the default export
 const ViroAnimations = {

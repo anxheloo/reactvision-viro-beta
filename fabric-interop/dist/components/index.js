@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ViroARTrackingTargets = exports.ViroMaterials = exports.ViroAnimations = exports.ViroARObjectMarker = exports.ViroARImageMarker = exports.ViroARPlane = exports.ViroARCamera = exports.ViroARSceneNavigator = exports.ViroVRSceneNavigator = exports.ViroSceneNavigator = exports.ViroMaterialVideo = exports.ViroAnimatedComponent = exports.ViroParticleEmitter = exports.ViroController = exports.ViroButton = exports.ViroSpatialSound = exports.ViroSoundField = exports.ViroSound = exports.ViroOrbitCamera = exports.ViroCamera = exports.ViroLightingEnvironment = exports.ViroOmniLight = exports.ViroSpotLight = exports.ViroDirectionalLight = exports.ViroAmbientLight = exports.ViroPortalScene = exports.ViroPortal = exports.ViroSkyBox = exports.Viro360Video = exports.Viro360Image = exports.ViroAnimatedImage = exports.ViroVideo = exports.ViroImage = exports.ViroText = exports.ViroSurface = exports.ViroPolyline = exports.ViroPolygon = exports.ViroQuad = exports.ViroGeometry = exports.Viro3DObject = exports.ViroSphere = exports.ViroBox = exports.ViroFlexView = exports.ViroARScene = exports.ViroScene = exports.ViroNode = void 0;
+exports.ViroARTrackingTargets = exports.ViroMaterials = exports.ViroAnimations = exports.ViroARObjectMarker = exports.ViroARImageMarker = exports.ViroARPlaneSelector = exports.ViroARPlane = exports.ViroARCamera = exports.Viro3DSceneNavigator = exports.ViroARSceneNavigator = exports.ViroVRSceneNavigator = exports.ViroSceneNavigator = exports.ViroMaterialVideo = exports.ViroAnimatedComponent = exports.ViroParticleEmitter = exports.ViroSpinner = exports.ViroController = exports.ViroButton = exports.ViroSpatialSound = exports.ViroSoundField = exports.ViroSound = exports.ViroOrbitCamera = exports.ViroCamera = exports.ViroLightingEnvironment = exports.ViroOmniLight = exports.ViroSpotLight = exports.ViroDirectionalLight = exports.ViroAmbientLight = exports.ViroPortalScene = exports.ViroPortal = exports.ViroSkyBox = exports.Viro360Video = exports.Viro360Image = exports.ViroAnimatedImage = exports.ViroVideo = exports.ViroImage = exports.ViroText = exports.ViroSurface = exports.ViroPolyline = exports.ViroPolygon = exports.ViroQuad = exports.ViroGeometry = exports.Viro3DObject = exports.ViroSphere = exports.ViroBox = exports.ViroFlexView = exports.ViroARScene = exports.ViroScene = exports.ViroNode = void 0;
 // Basic components
 var ViroNode_1 = require("./ViroNode");
 Object.defineProperty(exports, "ViroNode", { enumerable: true, get: function () { return ViroNode_1.ViroNode; } });
@@ -99,6 +99,8 @@ var ViroButton_1 = require("./ViroButton");
 Object.defineProperty(exports, "ViroButton", { enumerable: true, get: function () { return ViroButton_1.ViroButton; } });
 var ViroController_1 = require("./ViroController");
 Object.defineProperty(exports, "ViroController", { enumerable: true, get: function () { return ViroController_1.ViroController; } });
+var ViroSpinner_1 = require("./ViroSpinner");
+Object.defineProperty(exports, "ViroSpinner", { enumerable: true, get: function () { return ViroSpinner_1.ViroSpinner; } });
 // Effects
 var ViroParticleEmitter_1 = require("./ViroParticleEmitter");
 Object.defineProperty(exports, "ViroParticleEmitter", { enumerable: true, get: function () { return ViroParticleEmitter_1.ViroParticleEmitter; } });
@@ -113,11 +115,15 @@ var ViroVRSceneNavigator_1 = require("./ViroVRSceneNavigator");
 Object.defineProperty(exports, "ViroVRSceneNavigator", { enumerable: true, get: function () { return ViroVRSceneNavigator_1.ViroVRSceneNavigator; } });
 var ViroARSceneNavigator_1 = require("./ViroARSceneNavigator");
 Object.defineProperty(exports, "ViroARSceneNavigator", { enumerable: true, get: function () { return ViroARSceneNavigator_1.ViroARSceneNavigator; } });
+var Viro3DSceneNavigator_1 = require("./Viro3DSceneNavigator");
+Object.defineProperty(exports, "Viro3DSceneNavigator", { enumerable: true, get: function () { return Viro3DSceneNavigator_1.Viro3DSceneNavigator; } });
 // AR components
 var ViroARCamera_1 = require("./ViroARCamera");
 Object.defineProperty(exports, "ViroARCamera", { enumerable: true, get: function () { return ViroARCamera_1.ViroARCamera; } });
-var ViroARPlane_1 = require("./ViroARPlane");
+var ViroARPlane_1 = require("./AR/ViroARPlane");
 Object.defineProperty(exports, "ViroARPlane", { enumerable: true, get: function () { return ViroARPlane_1.ViroARPlane; } });
+var ViroARPlaneSelector_1 = require("./AR/ViroARPlaneSelector");
+Object.defineProperty(exports, "ViroARPlaneSelector", { enumerable: true, get: function () { return ViroARPlaneSelector_1.ViroARPlaneSelector; } });
 var ViroARImageMarker_1 = require("./ViroARImageMarker");
 Object.defineProperty(exports, "ViroARImageMarker", { enumerable: true, get: function () { return ViroARImageMarker_1.ViroARImageMarker; } });
 var ViroARObjectMarker_1 = require("./ViroARObjectMarker");

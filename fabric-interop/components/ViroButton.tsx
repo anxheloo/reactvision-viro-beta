@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroButtonProps extends ViroCommonProps {
   // Button properties
@@ -59,39 +60,33 @@ export const ViroButton: React.FC<ViroButtonProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onHover) {
       const callbackId = `${nodeId}_hover`;
-      global.NativeViro.registerEventCallback(nodeId, "onHover", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onHover", callbackId);
     }
 
     if (props.onClick) {
       const callbackId = `${nodeId}_click`;
-      global.NativeViro.registerEventCallback(nodeId, "onClick", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onClick", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onHover) {
         const callbackId = `${nodeId}_hover`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onHover",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onHover", callbackId);
       }
 
       if (props.onClick) {
         const callbackId = `${nodeId}_click`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onClick",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
       }
     };
   }, [nodeId, props.onHover, props.onClick]);

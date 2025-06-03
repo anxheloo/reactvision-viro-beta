@@ -4,6 +4,8 @@
  * A utility for registering AR tracking targets.
  */
 
+import { getNativeViro } from "../ViroGlobal";
+
 // Tracking target types
 export interface ViroARImageTarget {
   source: { uri: string } | number;
@@ -36,8 +38,9 @@ export function registerTargets(
   });
 
   // Register with native code if available
-  if (global.NativeViro) {
-    global.NativeViro.setViroARImageTargets(targets);
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    nativeViro.setViroARImageTargets(targets);
   }
 }
 
@@ -68,8 +71,26 @@ export function clearTargets(): void {
   });
 
   // Clear native code if available
-  if (global.NativeViro) {
-    global.NativeViro.setViroARImageTargets({});
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    nativeViro.setViroARImageTargets({});
+  }
+}
+
+/**
+ * Delete a specific tracking target.
+ * @param targetName The name of the tracking target to delete.
+ */
+export function deleteTarget(targetName: string): void {
+  // Remove the target from the registry
+  delete targets[targetName];
+
+  // Update native code if available
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    // Since there's no direct method to delete a single target,
+    // we re-register all remaining targets
+    nativeViro.setViroARImageTargets(targets);
   }
 }
 
@@ -79,6 +100,9 @@ const ViroARTrackingTargets = {
   getTarget,
   getAllTargets,
   clearTargets,
+  deleteTarget,
+  // Add createTargets as an alias for registerTargets for backward compatibility
+  createTargets: registerTargets,
 };
 
 export default ViroARTrackingTargets;

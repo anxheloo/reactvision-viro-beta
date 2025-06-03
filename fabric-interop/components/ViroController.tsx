@@ -11,6 +11,7 @@ import {
   convertCommonProps,
   ViroEventHandler,
 } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroControllerProps extends ViroCommonProps {
   // Controller properties
@@ -49,37 +50,38 @@ export const ViroController: React.FC<ViroControllerProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onClick) {
       const callbackId = `${nodeId}_click`;
-      global.NativeViro.registerEventCallback(nodeId, "onClick", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onClick", callbackId);
     }
 
     if (props.onDrag) {
       const callbackId = `${nodeId}_drag`;
-      global.NativeViro.registerEventCallback(nodeId, "onDrag", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onDrag", callbackId);
     }
 
     if (props.onFuse) {
       const callbackId = `${nodeId}_fuse`;
-      global.NativeViro.registerEventCallback(nodeId, "onFuse", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onFuse", callbackId);
     }
 
     if (props.onPinch) {
       const callbackId = `${nodeId}_pinch`;
-      global.NativeViro.registerEventCallback(nodeId, "onPinch", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onPinch", callbackId);
     }
 
     if (props.onRotate) {
       const callbackId = `${nodeId}_rotate`;
-      global.NativeViro.registerEventCallback(nodeId, "onRotate", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onRotate", callbackId);
     }
 
     if (props.onControllerStatus) {
       const callbackId = `${nodeId}_controller_status`;
-      global.NativeViro.registerEventCallback(
+      nativeViro.registerEventCallback(
         nodeId,
         "onControllerStatus",
         callbackId
@@ -88,48 +90,37 @@ export const ViroController: React.FC<ViroControllerProps> = (props) => {
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onClick) {
         const callbackId = `${nodeId}_click`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onClick",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
       }
 
       if (props.onDrag) {
         const callbackId = `${nodeId}_drag`;
-        global.NativeViro.unregisterEventCallback(nodeId, "onDrag", callbackId);
+        nativeViro.unregisterEventCallback(nodeId, "onDrag", callbackId);
       }
 
       if (props.onFuse) {
         const callbackId = `${nodeId}_fuse`;
-        global.NativeViro.unregisterEventCallback(nodeId, "onFuse", callbackId);
+        nativeViro.unregisterEventCallback(nodeId, "onFuse", callbackId);
       }
 
       if (props.onPinch) {
         const callbackId = `${nodeId}_pinch`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onPinch",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onPinch", callbackId);
       }
 
       if (props.onRotate) {
         const callbackId = `${nodeId}_rotate`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onRotate",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onRotate", callbackId);
       }
 
       if (props.onControllerStatus) {
         const callbackId = `${nodeId}_controller_status`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onControllerStatus",
           callbackId

@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroARScene = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroARScene is a specialized scene for AR content that uses the device's camera as a background.
  */
@@ -36,7 +37,8 @@ const ViroARScene = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("arScene", nativeProps);
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         const eventHandlers = [
@@ -56,16 +58,17 @@ const ViroARScene = (props) => {
             .filter(({ handler }) => !!handler)
             .map(({ name, handler }) => {
             const callbackId = `${nodeId}_${name}`;
-            global.NativeViro.registerEventCallback(nodeId, name, callbackId);
+            nativeViro.registerEventCallback(nodeId, name, callbackId);
             return { name, callbackId };
         });
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             // Unregister all event handlers
             registeredCallbacks.forEach(({ name, callbackId }) => {
-                global.NativeViro.unregisterEventCallback(nodeId, name, callbackId);
+                nativeViro.unregisterEventCallback(nodeId, name, callbackId);
             });
         };
     }, [

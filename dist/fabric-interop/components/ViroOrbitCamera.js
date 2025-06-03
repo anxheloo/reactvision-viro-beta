@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroOrbitCamera = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroOrbitCamera is a specialized camera that orbits around a target point.
  * It provides controls for zooming, panning, and rotating around the focal point.
@@ -40,20 +41,22 @@ const ViroOrbitCamera = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("orbitCamera", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onTransformUpdate) {
             const callbackId = `${nodeId}_transform_update`;
-            global.NativeViro.registerEventCallback(nodeId, "onTransformUpdate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onTransformUpdate", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onTransformUpdate) {
                 const callbackId = `${nodeId}_transform_update`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onTransformUpdate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onTransformUpdate", callbackId);
             }
         };
     }, [nodeId, props.onTransformUpdate]);

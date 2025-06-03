@@ -6,7 +6,7 @@
 import { ViroNodeProps, ViroNodeType } from "../NativeViro";
 export declare function useViroNode(nodeType: ViroNodeType, props: ViroNodeProps, parentId?: string): string;
 export declare function useViroChildren(nodeId: string, children: React.ReactNode): React.ReactNode;
-export type ViroEventHandler = (event: any) => void;
+export type ViroEventHandler = (event: any, ...args: any[]) => void;
 export type ViroPosition = [number, number, number];
 export type ViroRotation = [number, number, number];
 export type ViroScale = [number, number, number] | number;

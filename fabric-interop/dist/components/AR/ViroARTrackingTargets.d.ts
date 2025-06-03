@@ -39,11 +39,18 @@ export declare function getAllTargets(): Record<string, ViroARTrackingTarget>;
  * Clear all registered tracking targets.
  */
 export declare function clearTargets(): void;
+/**
+ * Delete a specific tracking target.
+ * @param targetName The name of the tracking target to delete.
+ */
+export declare function deleteTarget(targetName: string): void;
 declare const ViroARTrackingTargets: {
     registerTargets: typeof registerTargets;
     getTarget: typeof getTarget;
     getAllTargets: typeof getAllTargets;
     clearTargets: typeof clearTargets;
+    deleteTarget: typeof deleteTarget;
+    createTargets: typeof registerTargets;
 };
 export default ViroARTrackingTargets;
 //# sourceMappingURL=ViroARTrackingTargets.d.ts.map

@@ -41,6 +41,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroSceneNavigator = void 0;
 const react_1 = __importStar(require("react"));
 const ViroFabricContainer_1 = require("../ViroFabricContainer");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroSceneNavigator is a component for rendering 3D scenes.
  * It provides a container for 3D scenes and handles the scene lifecycle.
@@ -52,10 +53,11 @@ const ViroSceneNavigator = (props) => {
     });
     // Initialize scene
     (0, react_1.useEffect)(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Initialize Viro
-        global.NativeViro.initialize(apiKey);
+        nativeViro.initialize(apiKey);
         // Cleanup when unmounting
         return () => {
             // Cleanup code here

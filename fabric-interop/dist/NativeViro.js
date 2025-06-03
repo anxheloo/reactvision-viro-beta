@@ -13,6 +13,14 @@ exports.registerEventListener = registerEventListener;
 exports.unregisterEventListener = unregisterEventListener;
 exports.initializeViro = initializeViro;
 exports.isViroJSIAvailable = isViroJSIAvailable;
+// The global NativeViro object is injected by the native code
+// Note: The type declaration is in the generated .d.ts file
+// We don't redeclare it here to avoid conflicts
+// Additional methods that may not be in the type declaration
+// These are accessed using type assertions in the components
+// - recenterTracking(nodeId: string): void
+// - project(nodeId: string, point: [number, number, number]): Promise<[number, number, number]>
+// - unproject(nodeId: string, point: [number, number, number]): Promise<[number, number, number]>
 // Event callback registry
 const eventCallbacks = {};
 // Generate a unique ID for nodes
@@ -30,13 +38,15 @@ function handleViroEvent(callbackId, event) {
         callback(event);
     }
 }
+const ViroGlobal_1 = require("./components/ViroGlobal");
 // Register a JS callback for native events
 function registerEventListener(nodeId, eventName, callback) {
     const callbackId = (0, exports.generateCallbackId)();
     eventCallbacks[callbackId] = callback;
     // Register with native code
-    if (global.NativeViro) {
-        global.NativeViro.registerEventCallback(nodeId, eventName, callbackId);
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        nativeViro.registerEventCallback(nodeId, eventName, callbackId);
     }
     return callbackId;
 }
@@ -44,19 +54,21 @@ function registerEventListener(nodeId, eventName, callback) {
 function unregisterEventListener(nodeId, eventName, callbackId) {
     delete eventCallbacks[callbackId];
     // Unregister with native code
-    if (global.NativeViro) {
-        global.NativeViro.unregisterEventCallback(nodeId, eventName, callbackId);
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        nativeViro.unregisterEventCallback(nodeId, eventName, callbackId);
     }
 }
 // Initialize the Viro platform
 function initializeViro(apiKey) {
-    if (global.NativeViro) {
-        return global.NativeViro.initialize(apiKey);
+    const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+    if (nativeViro) {
+        return nativeViro.initialize(apiKey);
     }
     return Promise.reject(new Error("NativeViro not available"));
 }
 // Check if the JSI interface is available
 function isViroJSIAvailable() {
-    return !!global.NativeViro;
+    return (0, ViroGlobal_1.isNativeViroAvailable)();
 }
 //# sourceMappingURL=NativeViro.js.map

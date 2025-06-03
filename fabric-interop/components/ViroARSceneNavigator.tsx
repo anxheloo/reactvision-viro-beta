@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ViroFabricContainer } from "../ViroFabricContainer";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroARSceneNavigatorProps {
   // Scene properties
@@ -46,14 +47,15 @@ export const ViroARSceneNavigator: React.FC<ViroARSceneNavigatorProps> = (
 
   // Initialize AR session
   useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Initialize Viro
-    global.NativeViro.initialize(apiKey);
+    nativeViro.initialize(apiKey);
 
     // Set plane detection
     if (props.planeDetection) {
-      global.NativeViro.setViroARPlaneDetection({
+      nativeViro.setViroARPlaneDetection({
         horizontal: props.planeDetection.horizontal ?? false,
         vertical: props.planeDetection.vertical ?? false,
       });

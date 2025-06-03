@@ -6,6 +6,8 @@
  * the existing native implementation.
  */
 
+// We don't need to declare global here anymore, as we're using the ViroGlobal utility
+
 // Type definitions for props and events
 export type ViroNodeProps = Record<string, any>;
 export type ViroNodeType =
@@ -55,65 +57,14 @@ export type ViroNodeType =
 export type ViroEventCallback = (event: any) => void;
 
 // The global NativeViro object is injected by the native code
-declare global {
-  var NativeViro: {
-    // Node management
-    createViroNode: (
-      nodeId: string,
-      nodeType: ViroNodeType,
-      props: ViroNodeProps
-    ) => void;
-    updateViroNode: (nodeId: string, props: ViroNodeProps) => void;
-    deleteViroNode: (nodeId: string) => void;
+// Note: The type declaration is in the generated .d.ts file
+// We don't redeclare it here to avoid conflicts
 
-    // Scene hierarchy
-    addViroNodeChild: (parentId: string, childId: string) => void;
-    removeViroNodeChild: (parentId: string, childId: string) => void;
-
-    // Event handling
-    registerEventCallback: (
-      nodeId: string,
-      eventName: string,
-      callbackId: string
-    ) => void;
-    unregisterEventCallback: (
-      nodeId: string,
-      eventName: string,
-      callbackId: string
-    ) => void;
-
-    // Materials
-    createViroMaterial: (
-      materialName: string,
-      properties: Record<string, any>
-    ) => void;
-    updateViroMaterial: (
-      materialName: string,
-      properties: Record<string, any>
-    ) => void;
-
-    // Animations
-    createViroAnimation: (
-      animationName: string,
-      properties: Record<string, any>
-    ) => void;
-    executeViroAnimation: (
-      nodeId: string,
-      animationName: string,
-      options: Record<string, any>
-    ) => void;
-
-    // AR specific
-    setViroARPlaneDetection: (config: {
-      horizontal: boolean;
-      vertical: boolean;
-    }) => void;
-    setViroARImageTargets: (targets: Record<string, any>) => void;
-
-    // Initialization
-    initialize: (apiKey: string) => Promise<boolean>;
-  };
-}
+// Additional methods that may not be in the type declaration
+// These are accessed using type assertions in the components
+// - recenterTracking(nodeId: string): void
+// - project(nodeId: string, point: [number, number, number]): Promise<[number, number, number]>
+// - unproject(nodeId: string, point: [number, number, number]): Promise<[number, number, number]>
 
 // Event callback registry
 const eventCallbacks: Record<string, ViroEventCallback> = {};
@@ -135,6 +86,8 @@ export function handleViroEvent(callbackId: string, event: any): void {
   }
 }
 
+import { getNativeViro, isNativeViroAvailable } from "./components/ViroGlobal";
+
 // Register a JS callback for native events
 export function registerEventListener(
   nodeId: string,
@@ -145,8 +98,9 @@ export function registerEventListener(
   eventCallbacks[callbackId] = callback;
 
   // Register with native code
-  if (global.NativeViro) {
-    global.NativeViro.registerEventCallback(nodeId, eventName, callbackId);
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    nativeViro.registerEventCallback(nodeId, eventName, callbackId);
   }
 
   return callbackId;
@@ -161,20 +115,22 @@ export function unregisterEventListener(
   delete eventCallbacks[callbackId];
 
   // Unregister with native code
-  if (global.NativeViro) {
-    global.NativeViro.unregisterEventCallback(nodeId, eventName, callbackId);
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    nativeViro.unregisterEventCallback(nodeId, eventName, callbackId);
   }
 }
 
 // Initialize the Viro platform
 export function initializeViro(apiKey: string): Promise<boolean> {
-  if (global.NativeViro) {
-    return global.NativeViro.initialize(apiKey);
+  const nativeViro = getNativeViro();
+  if (nativeViro) {
+    return nativeViro.initialize(apiKey);
   }
   return Promise.reject(new Error("NativeViro not available"));
 }
 
 // Check if the JSI interface is available
 export function isViroJSIAvailable(): boolean {
-  return !!global.NativeViro;
+  return isNativeViroAvailable();
 }

@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroPortalScene = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroPortalScene is a component for creating the environment inside a portal.
  * It contains the content that will be visible through a ViroPortal.
@@ -27,28 +28,30 @@ const ViroPortalScene = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("portalScene", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onPortalEnter) {
             const callbackId = `${nodeId}_portal_enter`;
-            global.NativeViro.registerEventCallback(nodeId, "onPortalEnter", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onPortalEnter", callbackId);
         }
         if (props.onPortalExit) {
             const callbackId = `${nodeId}_portal_exit`;
-            global.NativeViro.registerEventCallback(nodeId, "onPortalExit", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onPortalExit", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onPortalEnter) {
                 const callbackId = `${nodeId}_portal_enter`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onPortalEnter", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onPortalEnter", callbackId);
             }
             if (props.onPortalExit) {
                 const callbackId = `${nodeId}_portal_exit`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onPortalExit", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onPortalExit", callbackId);
             }
         };
     }, [nodeId, props.onPortalEnter, props.onPortalExit]);

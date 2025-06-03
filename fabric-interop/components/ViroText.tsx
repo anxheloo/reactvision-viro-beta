@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroTextProps extends ViroCommonProps {
   // Text content

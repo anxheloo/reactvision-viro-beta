@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroARCamera = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroARCamera is a component for controlling the camera in an AR scene.
  * It provides information about the camera's position and orientation in the real world,
@@ -28,28 +29,30 @@ const ViroARCamera = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("arCamera", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onTransformUpdate) {
             const callbackId = `${nodeId}_transform_update`;
-            global.NativeViro.registerEventCallback(nodeId, "onTransformUpdate", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onTransformUpdate", callbackId);
         }
         if (props.onTrackingUpdated) {
             const callbackId = `${nodeId}_tracking_updated`;
-            global.NativeViro.registerEventCallback(nodeId, "onTrackingUpdated", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onTrackingUpdated", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onTransformUpdate) {
                 const callbackId = `${nodeId}_transform_update`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onTransformUpdate", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onTransformUpdate", callbackId);
             }
             if (props.onTrackingUpdated) {
                 const callbackId = `${nodeId}_tracking_updated`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onTrackingUpdated", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onTrackingUpdated", callbackId);
             }
         };
     }, [nodeId, props.onTransformUpdate, props.onTrackingUpdated]);

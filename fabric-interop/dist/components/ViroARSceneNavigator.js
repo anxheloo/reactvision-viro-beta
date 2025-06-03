@@ -41,6 +41,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroARSceneNavigator = void 0;
 const react_1 = __importStar(require("react"));
 const ViroFabricContainer_1 = require("../ViroFabricContainer");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroARSceneNavigator is a component for rendering AR scenes.
  * It provides a container for AR scenes and handles the AR session lifecycle.
@@ -53,13 +54,14 @@ const ViroARSceneNavigator = (props) => {
     // Initialize AR session
     (0, react_1.useEffect)(() => {
         var _a, _b;
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Initialize Viro
-        global.NativeViro.initialize(apiKey);
+        nativeViro.initialize(apiKey);
         // Set plane detection
         if (props.planeDetection) {
-            global.NativeViro.setViroARPlaneDetection({
+            nativeViro.setViroARPlaneDetection({
                 horizontal: (_a = props.planeDetection.horizontal) !== null && _a !== void 0 ? _a : false,
                 vertical: (_b = props.planeDetection.vertical) !== null && _b !== void 0 ? _b : false,
             });

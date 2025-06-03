@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface Viro3DObjectProps extends ViroCommonProps {
   // 3D model source
@@ -96,57 +97,43 @@ export const Viro3DObject: React.FC<Viro3DObjectProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onLoadStart) {
       const callbackId = `${nodeId}_load_start`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onLoadStart",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onLoadStart", callbackId);
     }
 
     if (props.onLoadEnd) {
       const callbackId = `${nodeId}_load_end`;
-      global.NativeViro.registerEventCallback(nodeId, "onLoadEnd", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onLoadEnd", callbackId);
     }
 
     if (props.onError) {
       const callbackId = `${nodeId}_error`;
-      global.NativeViro.registerEventCallback(nodeId, "onError", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onError", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onLoadStart) {
         const callbackId = `${nodeId}_load_start`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onLoadStart",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onLoadStart", callbackId);
       }
 
       if (props.onLoadEnd) {
         const callbackId = `${nodeId}_load_end`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onLoadEnd",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onLoadEnd", callbackId);
       }
 
       if (props.onError) {
         const callbackId = `${nodeId}_error`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onError",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onError", callbackId);
       }
     };
   }, [nodeId, props.onLoadStart, props.onLoadEnd, props.onError]);

@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroAnimatedComponentProps extends ViroCommonProps {
   // Animation properties
@@ -45,34 +46,28 @@ export const ViroAnimatedComponent: React.FC<ViroAnimatedComponentProps> = (
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro || !props.animation) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro || !props.animation) return;
 
     // Register event handlers if provided
     if (props.animation.onStart) {
       const callbackId = `${nodeId}_animation_start`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onAnimationStart",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onAnimationStart", callbackId);
     }
 
     if (props.animation.onFinish) {
       const callbackId = `${nodeId}_animation_finish`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onAnimationFinish",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onAnimationFinish", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro || !props.animation) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro || !props.animation) return;
 
       if (props.animation.onStart) {
         const callbackId = `${nodeId}_animation_start`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onAnimationStart",
           callbackId
@@ -81,7 +76,7 @@ export const ViroAnimatedComponent: React.FC<ViroAnimatedComponentProps> = (
 
       if (props.animation.onFinish) {
         const callbackId = `${nodeId}_animation_finish`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onAnimationFinish",
           callbackId

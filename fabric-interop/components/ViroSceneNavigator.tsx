@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ViroFabricContainer } from "../ViroFabricContainer";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroSceneNavigatorProps {
   // Scene properties
@@ -41,10 +42,11 @@ export const ViroSceneNavigator: React.FC<ViroSceneNavigatorProps> = (
 
   // Initialize scene
   useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Initialize Viro
-    global.NativeViro.initialize(apiKey);
+    nativeViro.initialize(apiKey);
 
     // Cleanup when unmounting
     return () => {

@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroSceneProps extends ViroCommonProps {
   // Scene-specific props
@@ -58,21 +59,18 @@ export const ViroScene: React.FC<ViroSceneProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onPlatformUpdate) {
       const callbackId = `${nodeId}_platform_update`;
-      global.NativeViro.registerEventCallback(
-        nodeId,
-        "onPlatformUpdate",
-        callbackId
-      );
+      nativeViro.registerEventCallback(nodeId, "onPlatformUpdate", callbackId);
     }
 
     if (props.onCameraTransformUpdate) {
       const callbackId = `${nodeId}_camera_transform_update`;
-      global.NativeViro.registerEventCallback(
+      nativeViro.registerEventCallback(
         nodeId,
         "onCameraTransformUpdate",
         callbackId
@@ -81,7 +79,7 @@ export const ViroScene: React.FC<ViroSceneProps> = (props) => {
 
     if (props.onAmbientLightUpdate) {
       const callbackId = `${nodeId}_ambient_light_update`;
-      global.NativeViro.registerEventCallback(
+      nativeViro.registerEventCallback(
         nodeId,
         "onAmbientLightUpdate",
         callbackId
@@ -90,11 +88,12 @@ export const ViroScene: React.FC<ViroSceneProps> = (props) => {
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onPlatformUpdate) {
         const callbackId = `${nodeId}_platform_update`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onPlatformUpdate",
           callbackId
@@ -103,7 +102,7 @@ export const ViroScene: React.FC<ViroSceneProps> = (props) => {
 
       if (props.onCameraTransformUpdate) {
         const callbackId = `${nodeId}_camera_transform_update`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onCameraTransformUpdate",
           callbackId
@@ -112,7 +111,7 @@ export const ViroScene: React.FC<ViroSceneProps> = (props) => {
 
       if (props.onAmbientLightUpdate) {
         const callbackId = `${nodeId}_ambient_light_update`;
-        global.NativeViro.unregisterEventCallback(
+        nativeViro.unregisterEventCallback(
           nodeId,
           "onAmbientLightUpdate",
           callbackId

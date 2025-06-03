@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroSoundFieldProps extends ViroCommonProps {
   // Sound source
@@ -45,39 +46,33 @@ export const ViroSoundField: React.FC<ViroSoundFieldProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     if (props.onFinish) {
       const callbackId = `${nodeId}_finish`;
-      global.NativeViro.registerEventCallback(nodeId, "onFinish", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onFinish", callbackId);
     }
 
     if (props.onError) {
       const callbackId = `${nodeId}_error`;
-      global.NativeViro.registerEventCallback(nodeId, "onError", callbackId);
+      nativeViro.registerEventCallback(nodeId, "onError", callbackId);
     }
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       if (props.onFinish) {
         const callbackId = `${nodeId}_finish`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onFinish",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onFinish", callbackId);
       }
 
       if (props.onError) {
         const callbackId = `${nodeId}_error`;
-        global.NativeViro.unregisterEventCallback(
-          nodeId,
-          "onError",
-          callbackId
-        );
+        nativeViro.unregisterEventCallback(nodeId, "onError", callbackId);
       }
     };
   }, [nodeId, props.onFinish, props.onError]);

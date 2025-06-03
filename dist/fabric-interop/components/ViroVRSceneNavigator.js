@@ -41,6 +41,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroVRSceneNavigator = void 0;
 const react_1 = __importStar(require("react"));
 const ViroFabricContainer_1 = require("../ViroFabricContainer");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroVRSceneNavigator is a component for rendering VR scenes.
  * It provides a container for VR scenes and handles the VR session lifecycle.
@@ -52,10 +53,11 @@ const ViroVRSceneNavigator = (props) => {
     });
     // Initialize VR scene
     (0, react_1.useEffect)(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Initialize Viro
-        global.NativeViro.initialize(apiKey);
+        nativeViro.initialize(apiKey);
         // Cleanup when unmounting
         return () => {
             // Cleanup code here

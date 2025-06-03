@@ -6,6 +6,7 @@
 
 import React from "react";
 import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroVideoProps extends ViroCommonProps {
   // Video source
@@ -67,7 +68,8 @@ export const ViroVideo: React.FC<ViroVideoProps> = (props) => {
 
   // Register event handlers
   React.useEffect(() => {
-    if (!global.NativeViro) return;
+    const nativeViro = getNativeViro();
+    if (!nativeViro) return;
 
     // Register event handlers if provided
     const eventHandlers = [
@@ -83,17 +85,18 @@ export const ViroVideo: React.FC<ViroVideoProps> = (props) => {
       .filter(({ handler }) => !!handler)
       .map(({ name, handler }) => {
         const callbackId = `${nodeId}_${name}`;
-        global.NativeViro.registerEventCallback(nodeId, name, callbackId);
+        nativeViro.registerEventCallback(nodeId, name, callbackId);
         return { name, callbackId };
       });
 
     // Cleanup when unmounting
     return () => {
-      if (!global.NativeViro) return;
+      const nativeViro = getNativeViro();
+      if (!nativeViro) return;
 
       // Unregister all event handlers
       registeredCallbacks.forEach(({ name, callbackId }) => {
-        global.NativeViro.unregisterEventCallback(nodeId, name, callbackId);
+        nativeViro.unregisterEventCallback(nodeId, name, callbackId);
       });
     };
   }, [

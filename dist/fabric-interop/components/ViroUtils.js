@@ -11,34 +11,38 @@ exports.useViroChildren = useViroChildren;
 exports.convertCommonProps = convertCommonProps;
 const react_1 = require("react");
 const NativeViro_1 = require("../NativeViro");
+const ViroGlobal_1 = require("./ViroGlobal");
 // Hook to manage a node's lifecycle
 function useViroNode(nodeType, props, parentId) {
     const nodeId = (0, react_1.useRef)((0, NativeViro_1.generateNodeId)());
     (0, react_1.useEffect)(() => {
         // Create the node when the component mounts
-        if (global.NativeViro) {
-            global.NativeViro.createViroNode(nodeId.current, nodeType, props);
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (nativeViro) {
+            nativeViro.createViroNode(nodeId.current, nodeType, props);
             // Add to parent if specified
             if (parentId) {
-                global.NativeViro.addViroNodeChild(parentId, nodeId.current);
+                nativeViro.addViroNodeChild(parentId, nodeId.current);
             }
         }
         // Clean up when the component unmounts
         return () => {
-            if (global.NativeViro) {
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (nativeViro) {
                 // Remove from parent if specified
                 if (parentId) {
-                    global.NativeViro.removeViroNodeChild(parentId, nodeId.current);
+                    nativeViro.removeViroNodeChild(parentId, nodeId.current);
                 }
                 // Delete the node
-                global.NativeViro.deleteViroNode(nodeId.current);
+                nativeViro.deleteViroNode(nodeId.current);
             }
         };
     }, [nodeType, parentId]);
     // Update props when they change
     (0, react_1.useEffect)(() => {
-        if (global.NativeViro) {
-            global.NativeViro.updateViroNode(nodeId.current, props);
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (nativeViro) {
+            nativeViro.updateViroNode(nodeId.current, props);
         }
     }, [props]);
     return nodeId.current;

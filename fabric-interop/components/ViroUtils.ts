@@ -7,6 +7,8 @@
 import { useEffect, useRef } from "react";
 import { generateNodeId, ViroNodeProps, ViroNodeType } from "../NativeViro";
 
+import { getNativeViro } from "./ViroGlobal";
+
 // Hook to manage a node's lifecycle
 export function useViroNode(
   nodeType: ViroNodeType,
@@ -17,33 +19,36 @@ export function useViroNode(
 
   useEffect(() => {
     // Create the node when the component mounts
-    if (global.NativeViro) {
-      global.NativeViro.createViroNode(nodeId.current, nodeType, props);
+    const nativeViro = getNativeViro();
+    if (nativeViro) {
+      nativeViro.createViroNode(nodeId.current, nodeType, props);
 
       // Add to parent if specified
       if (parentId) {
-        global.NativeViro.addViroNodeChild(parentId, nodeId.current);
+        nativeViro.addViroNodeChild(parentId, nodeId.current);
       }
     }
 
     // Clean up when the component unmounts
     return () => {
-      if (global.NativeViro) {
+      const nativeViro = getNativeViro();
+      if (nativeViro) {
         // Remove from parent if specified
         if (parentId) {
-          global.NativeViro.removeViroNodeChild(parentId, nodeId.current);
+          nativeViro.removeViroNodeChild(parentId, nodeId.current);
         }
 
         // Delete the node
-        global.NativeViro.deleteViroNode(nodeId.current);
+        nativeViro.deleteViroNode(nodeId.current);
       }
     };
   }, [nodeType, parentId]);
 
   // Update props when they change
   useEffect(() => {
-    if (global.NativeViro) {
-      global.NativeViro.updateViroNode(nodeId.current, props);
+    const nativeViro = getNativeViro();
+    if (nativeViro) {
+      nativeViro.updateViroNode(nodeId.current, props);
     }
   }, [props]);
 
@@ -60,7 +65,7 @@ export function useViroChildren(
 }
 
 // Common event handler types
-export type ViroEventHandler = (event: any) => void;
+export type ViroEventHandler = (event: any, ...args: any[]) => void;
 
 // Common position and transform types
 export type ViroPosition = [number, number, number];

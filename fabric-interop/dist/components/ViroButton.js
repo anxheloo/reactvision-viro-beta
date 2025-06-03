@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroButton = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroButton is a component for creating interactive buttons in 3D space.
  * It supports different visual states for normal, hover, and click interactions.
@@ -35,28 +36,30 @@ const ViroButton = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("button", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onHover) {
             const callbackId = `${nodeId}_hover`;
-            global.NativeViro.registerEventCallback(nodeId, "onHover", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onHover", callbackId);
         }
         if (props.onClick) {
             const callbackId = `${nodeId}_click`;
-            global.NativeViro.registerEventCallback(nodeId, "onClick", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onClick", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onHover) {
                 const callbackId = `${nodeId}_hover`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onHover", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onHover", callbackId);
             }
             if (props.onClick) {
                 const callbackId = `${nodeId}_click`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onClick", callbackId);
             }
         };
     }, [nodeId, props.onHover, props.onClick]);

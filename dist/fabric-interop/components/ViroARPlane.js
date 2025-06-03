@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroARPlane = void 0;
 const react_1 = __importDefault(require("react"));
 const ViroUtils_1 = require("./ViroUtils");
+const ViroGlobal_1 = require("./ViroGlobal");
 /**
  * ViroARPlane is a component for rendering AR planes detected by the AR system.
  * It represents a real-world surface detected by the AR system, such as a floor, table, or wall.
@@ -33,36 +34,38 @@ const ViroARPlane = (props) => {
     const nodeId = (0, ViroUtils_1.useViroNode)("arPlane", nativeProps, "viro_root_scene");
     // Register event handlers
     react_1.default.useEffect(() => {
-        if (!global.NativeViro)
+        const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+        if (!nativeViro)
             return;
         // Register event handlers if provided
         if (props.onAnchorFound) {
             const callbackId = `${nodeId}_anchor_found`;
-            global.NativeViro.registerEventCallback(nodeId, "onAnchorFound", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAnchorFound", callbackId);
         }
         if (props.onAnchorUpdated) {
             const callbackId = `${nodeId}_anchor_updated`;
-            global.NativeViro.registerEventCallback(nodeId, "onAnchorUpdated", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAnchorUpdated", callbackId);
         }
         if (props.onAnchorRemoved) {
             const callbackId = `${nodeId}_anchor_removed`;
-            global.NativeViro.registerEventCallback(nodeId, "onAnchorRemoved", callbackId);
+            nativeViro.registerEventCallback(nodeId, "onAnchorRemoved", callbackId);
         }
         // Cleanup when unmounting
         return () => {
-            if (!global.NativeViro)
+            const nativeViro = (0, ViroGlobal_1.getNativeViro)();
+            if (!nativeViro)
                 return;
             if (props.onAnchorFound) {
                 const callbackId = `${nodeId}_anchor_found`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAnchorFound", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAnchorFound", callbackId);
             }
             if (props.onAnchorUpdated) {
                 const callbackId = `${nodeId}_anchor_updated`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAnchorUpdated", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAnchorUpdated", callbackId);
             }
             if (props.onAnchorRemoved) {
                 const callbackId = `${nodeId}_anchor_removed`;
-                global.NativeViro.unregisterEventCallback(nodeId, "onAnchorRemoved", callbackId);
+                nativeViro.unregisterEventCallback(nodeId, "onAnchorRemoved", callbackId);
             }
         };
     }, [

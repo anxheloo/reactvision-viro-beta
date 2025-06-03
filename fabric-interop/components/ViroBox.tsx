@@ -11,6 +11,7 @@ import {
   useViroNode,
   convertCommonProps,
 } from "./ViroUtils";
+import { getNativeViro } from "./ViroGlobal";
 
 export interface ViroBoxProps extends ViroCommonProps {
   // Box-specific props
