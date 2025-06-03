@@ -8,8 +8,7 @@ This document outlines the steps we've taken and the steps that still need to be
 
 We've made the following improvements to the TypeScript code to better support the New Architecture:
 
-- Created a `ViroGlobal.ts` utility to provide type-safe access to the global NativeViro object
-- Updated all components to use this utility instead of directly accessing global.NativeViro:
+- Updated all components:
   - Viro3DObject.tsx
   - ViroAnimations.ts
   - ViroARTrackingTargets.ts
@@ -107,6 +106,4 @@ This approach allows us to support the New Architecture without a complete rewri
 ## Resources
 
 - [React Native New Architecture](https://reactnative.dev/docs/the-new-architecture/landing-page)
-- [JSI Documentation](https://reactnative.dev/docs/the-new-architecture/jsi)
-- [Fabric Components](https://reactnative.dev/docs/the-new-architecture/fabric-components)
-- [TurboModules](https://reactnative.dev/docs/the-new-architecture/turbomodules)
+
