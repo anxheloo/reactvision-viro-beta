@@ -6,6 +6,103 @@ This directory contains the Fabric interop layer for ReactVision, which enables 
 
 The Fabric interop layer provides a bridge between the existing ReactVision implementation and React Native's New Architecture (Fabric). It allows you to use Viro components in apps that have enabled the New Architecture.
 
+## How It Works
+
+The Fabric interop layer is designed as a thin wrapper around the existing Viro native implementation, connecting it to React Native's New Architecture without requiring a complete rewrite of the native code. Here's how it works:
+
+### Architecture
+
+The interop layer consists of three main components:
+
+1. **JavaScript Interface (NativeViro.ts)**
+
+   - Defines TypeScript interfaces and function signatures
+   - Manages event callback registration and handling
+   - Provides utility functions for ID generation and availability checking
+
+2. **iOS Native Implementation (ViroFabricContainer.mm)**
+
+   - Implements a UIView subclass that hosts the existing VRT\* classes
+   - Creates JSI bindings to expose native functionality to JavaScript
+   - Delegates to the existing Viro implementation for rendering and scene management
+
+3. **Android Native Implementation**
+   - Java component (ViroFabricContainer.java) manages the view and VRT objects
+   - C++ component (ViroFabricContainerJSI.cpp) provides JSI bindings
+   - Connects JavaScript calls to the existing Java implementation
+
+### JSI Integration
+
+The interop layer uses JavaScript Interface (JSI) to communicate directly with native code, bypassing the traditional React Native bridge. This approach:
+
+- Provides synchronous communication between JavaScript and native code
+- Eliminates serialization/deserialization overhead
+- Aligns with React Native's New Architecture principles
+
+The JSI integration works by:
+
+1. Creating a global `NativeViro` object in the JavaScript runtime
+2. Exposing native methods as JavaScript functions
+3. Setting up event handling to pass events from native to JavaScript
+
+```javascript
+// JavaScript code can call native methods directly
+NativeViro.createViroNode(nodeId, nodeType, props);
+```
+
+### Node Management
+
+The interop layer manages Viro nodes by:
+
+1. Creating native VRT\* objects based on node type
+2. Updating node properties when they change
+3. Managing the node hierarchy (parent-child relationships)
+4. Handling node deletion and cleanup
+
+For example, when you create a box in JavaScript:
+
+```javascript
+const box = <ViroBox position={[0, 0, -1]} />;
+```
+
+The interop layer:
+
+1. Generates a unique node ID
+2. Calls `NativeViro.createViroNode(nodeId, "box", {position: [0, 0, -1]})`
+3. The native side creates a `VRTBox` object with the specified properties
+4. The box is added to the scene hierarchy
+
+### Event System
+
+The event system allows bidirectional communication:
+
+1. **JavaScript to Native**: Function calls through the JSI interface
+2. **Native to JavaScript**: Events dispatched through callback registration
+
+When you register an event handler in JavaScript:
+
+```javascript
+<ViroBox onTap={handleTap} />
+```
+
+The interop layer:
+
+1. Generates a unique callback ID
+2. Registers the callback in a JavaScript registry
+3. Tells the native side to associate this callback ID with tap events on the node
+4. When a tap occurs, the native code calls `handleViroEvent(callbackId, eventData)`
+5. The JavaScript side looks up the callback and invokes it with the event data
+
+### Reusing Existing Native Code
+
+The key advantage of this approach is that it reuses the existing Viro native implementation:
+
+- **iOS**: Uses existing VRTSceneNavigator, VRTARSceneNavigator, and other VRT\* classes
+- **Android**: Uses existing VRTSceneNavigator, VRTARSceneNavigator, and other VRT\* classes
+- **Rendering**: All rendering is handled by the existing Viro renderer
+
+This means that all the complex AR/VR functionality, rendering, physics, etc. don't need to be reimplemented - the interop layer simply provides a new way to access this functionality that's compatible with React Native's New Architecture.
+
 ## Installation
 
 ### iOS
@@ -100,7 +197,7 @@ If you're still having issues with header files, you may need to manually copy t
 cp node_modules/@reactvision/react-viro/ios/VRTManagedAnimation.h node_modules/@reactvision/react-viro/fabric-interop/ios/
 ```
 
-The ViroFabric podspec includes a prepare_command that automatically copies VRTManagedAnimation.h to the fabric-interop/ios directory, but you may need to do this manually if you're using a custom setup.
+Note that the VRTManagedAnimation.h file is already included in the fabric-interop/ios directory in the repository, so you shouldn't need to copy it manually unless you're using a custom setup.
 
 ### Other Issues
 
