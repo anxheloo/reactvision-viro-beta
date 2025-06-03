@@ -2,8 +2,8 @@
 //  ViroFabricContainer.mm
 //  ViroReact
 //
-//  Created for Viro Media.
-//  Copyright © 2025 Viro Media. All rights reserved.
+//  Created for ReactVision.
+//  Copyright © 2025 ReactVision. All rights reserved.
 //
 
 #import "ViroFabricContainer.h"
@@ -17,7 +17,8 @@
 #import <ViroReact/VRTSceneNavigator.h>
 #import <ViroReact/VRTARSceneNavigator.h>
 #import <ViroReact/VRTVRSceneNavigator.h>
-#import <ViroReact/VRTManagedAnimation.h>
+// Import VRTManagedAnimation directly
+#import "VRTManagedAnimation.h"
 
 using namespace facebook::jsi;
 

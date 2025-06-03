@@ -6,8 +6,6 @@
  * the existing native implementation.
  */
 
-// We don't need to declare global here anymore, as we're using the ViroGlobal utility
-
 // Type definitions for props and events
 export type ViroNodeProps = Record<string, any>;
 export type ViroNodeType =

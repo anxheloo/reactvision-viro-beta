@@ -2,8 +2,8 @@
 //  ViroFabricContainer.h
 //  ViroReact
 //
-//  Created for Viro Media.
-//  Copyright © 2025 Viro Media. All rights reserved.
+//  Created for ReactVision.
+//  Copyright © 2025 ReactVision. All rights reserved.
 //
 
 #import <React/RCTView.h>

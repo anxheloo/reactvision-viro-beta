@@ -1,7 +1,7 @@
 {
   "name": "@reactvision/viro-fabric",
   "version": "1.0.0",
-  "description": "Fabric interop layer for Viro React Native library",
+  "description": "Fabric interop layer for ReactVision",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",

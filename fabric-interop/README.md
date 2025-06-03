@@ -1,10 +1,10 @@
-# Viro React Native Fabric Interop Layer
+# ReactVision Fabric Interop Layer
 
-This directory contains the Fabric interop layer for Viro React Native, which enables support for React Native's New Architecture.
+This directory contains the Fabric interop layer for ReactVision, which enables support for React Native's New Architecture.
 
 ## Overview
 
-The Fabric interop layer provides a bridge between the existing Viro React Native implementation and React Native's New Architecture (Fabric). It allows you to use Viro components in apps that have enabled the New Architecture.
+The Fabric interop layer provides a bridge between the existing ReactVision implementation and React Native's New Architecture (Fabric). It allows you to use Viro components in apps that have enabled the New Architecture.
 
 ## Installation
 
@@ -13,7 +13,7 @@ The Fabric interop layer provides a bridge between the existing Viro React Nativ
 To use the Fabric interop layer in your iOS app, you need to add the `ViroFabric` pod to your Podfile:
 
 ```ruby
-# Add Viro React Native
+# Add ReactVision
 # IMPORTANT: Order matters! ViroKit must be included before ViroFabric
 pod 'ViroReact', :path => '../node_modules/@reactvision/react-viro/ios'
 pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'
@@ -81,13 +81,26 @@ If you see this error, it means the Fabric interop layer is not properly install
 If you encounter errors like `'ViroKit/ViroKit.h' file not found` or `'VRTManagedAnimation.h' file not found`, it means the header search paths are not properly configured. Make sure:
 
 1. You're using the latest version of the ViroFabric podspec, which includes the correct header search paths
-2. You're importing Viro headers using angle brackets with the ViroReact prefix, like this:
+2. For most Viro headers, use angle brackets with the ViroReact prefix:
    ```objc
    #import <ViroReact/VRTSceneNavigator.h>
    #import <ViroReact/VRTARSceneNavigator.h>
    ```
-3. The order of pods in your Podfile is correct (ViroKit before ViroFabric)
-4. You've run `pod install` after making any changes to your Podfile
+3. For VRTManagedAnimation.h specifically, use a direct import:
+   ```objc
+   #import "VRTManagedAnimation.h"
+   ```
+4. The order of pods in your Podfile is correct (ViroKit before ViroFabric)
+5. You've run `pod install` after making any changes to your Podfile
+
+If you're still having issues with header files, you may need to manually copy the missing header files to your project. For example:
+
+```bash
+# Copy VRTManagedAnimation.h to the fabric-interop/ios directory
+cp node_modules/@reactvision/react-viro/ios/VRTManagedAnimation.h node_modules/@reactvision/react-viro/fabric-interop/ios/
+```
+
+The ViroFabric podspec includes a prepare_command that automatically copies VRTManagedAnimation.h to the fabric-interop/ios directory, but you may need to do this manually if you're using a custom setup.
 
 ### Other Issues
 
