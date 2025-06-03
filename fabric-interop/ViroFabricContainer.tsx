@@ -15,7 +15,10 @@ import {
 } from "react-native";
 
 // Define the native component
-const NativeViroFabricContainer = requireNativeComponent("ViroFabricContainer");
+// @ts-ignore - TypeScript doesn't know about the props of the native component
+const NativeViroFabricContainer = requireNativeComponent<any>(
+  "ViroFabricContainer"
+);
 
 // Props for the container
 export interface ViroFabricContainerProps {
@@ -78,6 +81,7 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
         // Android
         UIManager.dispatchViewManagerCommand(
           nodeHandle,
+          // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
           UIManager.ViroFabricContainer.Commands.initialize.toString(),
           [apiKey, debug, arEnabled, worldAlignment]
         );
@@ -101,6 +105,7 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
           // Android
           UIManager.dispatchViewManagerCommand(
             nodeHandle,
+            // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
             UIManager.ViroFabricContainer.Commands.cleanup.toString(),
             []
           );

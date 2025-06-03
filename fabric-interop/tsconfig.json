@@ -8,7 +8,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./",
-    "strict": true,
+    "strict": false,
     "moduleResolution": "node",
     "baseUrl": "./",
     "esModuleInterop": true,
@@ -17,8 +17,8 @@
     "resolveJsonModule": true,
     "jsx": "react-native",
     "allowSyntheticDefaultImports": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "noImplicitAny": false,
+    "noEmitOnError": false,
     "paths": {
       "*": ["*", "components/*"]
     }

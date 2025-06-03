@@ -12,6 +12,7 @@ import {
   ViroText,
   ViroMaterials,
   ViroARTrackingTargets,
+  ViroARImageMarker,
 } from "../components";
 
 // Register materials

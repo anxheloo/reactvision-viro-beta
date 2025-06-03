@@ -6,86 +6,86 @@
  */
 
 // Basic components
-export { ViroNode } from "./ViroNode.tsx";
-export { ViroScene } from "./ViroScene.tsx";
-export { ViroARScene } from "./ViroARScene.tsx";
-export { ViroFlexView } from "./ViroFlexView.tsx";
+export { ViroNode } from "./ViroNode";
+export { ViroScene } from "./ViroScene";
+export { ViroARScene } from "./ViroARScene";
+export { ViroFlexView } from "./ViroFlexView";
 
 // 3D primitives
-export { ViroBox } from "./ViroBox.tsx";
-export { ViroSphere } from "./ViroSphere.tsx";
-export { Viro3DObject } from "./Viro3DObject.tsx";
-export { ViroGeometry } from "./ViroGeometry.tsx";
-export { ViroQuad } from "./ViroQuad.tsx";
-export { ViroPolygon } from "./ViroPolygon.tsx";
-export { ViroPolyline } from "./ViroPolyline.tsx";
-export { ViroSurface } from "./ViroSurface.tsx";
+export { ViroBox } from "./ViroBox";
+export { ViroSphere } from "./ViroSphere";
+export { Viro3DObject } from "./Viro3DObject";
+export { ViroGeometry } from "./ViroGeometry";
+export { ViroQuad } from "./ViroQuad";
+export { ViroPolygon } from "./ViroPolygon";
+export { ViroPolyline } from "./ViroPolyline";
+export { ViroSurface } from "./ViroSurface";
 
 // 2D components
-export { ViroText } from "./ViroText.tsx";
-export { ViroImage } from "./ViroImage.tsx";
-export { ViroVideo } from "./ViroVideo.tsx";
-export { ViroAnimatedImage } from "./ViroAnimatedImage.tsx";
+export { ViroText } from "./ViroText";
+export { ViroImage } from "./ViroImage";
+export { ViroVideo } from "./ViroVideo";
+export { ViroAnimatedImage } from "./ViroAnimatedImage";
 
 // 360 components
-export { Viro360Image } from "./Viro360Image.tsx";
-export { Viro360Video } from "./Viro360Video.tsx";
-export { ViroSkyBox } from "./ViroSkyBox.tsx";
+export { Viro360Image } from "./Viro360Image";
+export { Viro360Video } from "./Viro360Video";
+export { ViroSkyBox } from "./ViroSkyBox";
 
 // Portal components
-export { ViroPortal } from "./ViroPortal.tsx";
-export { ViroPortalScene } from "./ViroPortalScene.tsx";
+export { ViroPortal } from "./ViroPortal";
+export { ViroPortalScene } from "./ViroPortalScene";
 
 // Lights
-export { ViroAmbientLight } from "./ViroAmbientLight.tsx";
-export { ViroDirectionalLight } from "./ViroDirectionalLight.tsx";
-export { ViroSpotLight } from "./ViroSpotLight.tsx";
-export { ViroOmniLight } from "./ViroOmniLight.tsx";
-export { ViroLightingEnvironment } from "./ViroLightingEnvironment.tsx";
+export { ViroAmbientLight } from "./ViroAmbientLight";
+export { ViroDirectionalLight } from "./ViroDirectionalLight";
+export { ViroSpotLight } from "./ViroSpotLight";
+export { ViroOmniLight } from "./ViroOmniLight";
+export { ViroLightingEnvironment } from "./ViroLightingEnvironment";
 
 // Cameras
-export { ViroCamera } from "./ViroCamera.tsx";
-export { ViroOrbitCamera } from "./ViroOrbitCamera.tsx";
+export { ViroCamera } from "./ViroCamera";
+export { ViroOrbitCamera } from "./ViroOrbitCamera";
 
 // Audio
-export { ViroSound } from "./ViroSound.tsx";
-export { ViroSoundField } from "./ViroSoundField.tsx";
-export { ViroSpatialSound } from "./ViroSpatialSound.tsx";
+export { ViroSound } from "./ViroSound";
+export { ViroSoundField } from "./ViroSoundField";
+export { ViroSpatialSound } from "./ViroSpatialSound";
 
 // Interactive components
-export { ViroButton } from "./ViroButton.tsx";
-export { ViroController } from "./ViroController.tsx";
+export { ViroButton } from "./ViroButton";
+export { ViroController } from "./ViroController";
 
 // Effects
-export { ViroParticleEmitter } from "./ViroParticleEmitter.tsx";
-export { ViroAnimatedComponent } from "./ViroAnimatedComponent.tsx";
-export { ViroMaterialVideo } from "./ViroMaterialVideo.tsx";
+export { ViroParticleEmitter } from "./ViroParticleEmitter";
+export { ViroAnimatedComponent } from "./ViroAnimatedComponent";
+export { ViroMaterialVideo } from "./ViroMaterialVideo";
 
 // Scene navigators
-export { ViroSceneNavigator } from "./ViroSceneNavigator.tsx";
-export { ViroVRSceneNavigator } from "./ViroVRSceneNavigator.tsx";
-export { ViroARSceneNavigator } from "./ViroARSceneNavigator.tsx";
+export { ViroSceneNavigator } from "./ViroSceneNavigator";
+export { ViroVRSceneNavigator } from "./ViroVRSceneNavigator";
+export { ViroARSceneNavigator } from "./ViroARSceneNavigator";
 
 // AR components
-export { ViroARCamera } from "./ViroARCamera.tsx";
-export { ViroARPlane } from "./ViroARPlane.tsx";
-export { ViroARImageMarker } from "./ViroARImageMarker.tsx";
-export { ViroARObjectMarker } from "./ViroARObjectMarker.tsx";
+export { ViroARCamera } from "./ViroARCamera";
+export { ViroARPlane } from "./ViroARPlane";
+export { ViroARImageMarker } from "./ViroARImageMarker";
+export { ViroARObjectMarker } from "./ViroARObjectMarker";
 
 // Utilities
-export * from "./ViroUtils.ts";
+export * from "./ViroUtils";
 
 // Animation utilities
-export * from "./Animation/ViroAnimations.ts";
-import ViroAnimations from "./Animation/ViroAnimations.ts";
+export * from "./Animation/ViroAnimations";
+import ViroAnimations from "./Animation/ViroAnimations";
 export { ViroAnimations };
 
 // Material utilities
-export * from "./Material/ViroMaterials.ts";
-import ViroMaterials from "./Material/ViroMaterials.ts";
+export * from "./Material/ViroMaterials";
+import ViroMaterials from "./Material/ViroMaterials";
 export { ViroMaterials };
 
 // AR utilities
-export * from "./AR/ViroARTrackingTargets.ts";
-import ViroARTrackingTargets from "./AR/ViroARTrackingTargets.ts";
+export * from "./AR/ViroARTrackingTargets";
+import ViroARTrackingTargets from "./AR/ViroARTrackingTargets";
 export { ViroARTrackingTargets };
