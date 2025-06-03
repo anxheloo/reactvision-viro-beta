@@ -1,0 +1,64 @@
+/**
+ * ViroDirectionalLight
+ *
+ * A component for adding directional lighting to a scene.
+ */
+
+import React from "react";
+import { ViroCommonProps, useViroNode, convertCommonProps } from "./ViroUtils";
+
+export interface ViroDirectionalLightProps extends ViroCommonProps {
+  // Light properties
+  color?: string;
+  intensity?: number;
+  temperature?: number;
+  direction?: [number, number, number];
+  influenceBitMask?: number;
+
+  // Shadow properties
+  castsShadow?: boolean;
+  shadowOpacity?: number;
+  shadowOrthographicSize?: number;
+  shadowOrthographicPosition?: [number, number, number];
+  shadowMapSize?: number;
+  shadowBias?: number;
+  shadowNearZ?: number;
+  shadowFarZ?: number;
+}
+
+/**
+ * ViroDirectionalLight is a component for adding directional lighting to a scene.
+ * Directional light is a type of light that illuminates all objects in the scene
+ * from a specific direction, similar to sunlight.
+ */
+export const ViroDirectionalLight: React.FC<ViroDirectionalLightProps> = (
+  props
+) => {
+  // Convert common props to the format expected by the native code
+  const nativeProps = {
+    ...convertCommonProps(props),
+    color: props.color,
+    intensity: props.intensity,
+    temperature: props.temperature,
+    direction: props.direction,
+    influenceBitMask: props.influenceBitMask,
+    castsShadow: props.castsShadow,
+    shadowOpacity: props.shadowOpacity,
+    shadowOrthographicSize: props.shadowOrthographicSize,
+    shadowOrthographicPosition: props.shadowOrthographicPosition,
+    shadowMapSize: props.shadowMapSize,
+    shadowBias: props.shadowBias,
+    shadowNearZ: props.shadowNearZ,
+    shadowFarZ: props.shadowFarZ,
+  };
+
+  // Create the node
+  const nodeId = useViroNode(
+    "directionalLight",
+    nativeProps,
+    "viro_root_scene"
+  );
+
+  // Directional light doesn't have children, so just return null
+  return null;
+};
