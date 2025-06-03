@@ -43,9 +43,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroFabricContainer = void 0;
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
+// Check if the component exists in UIManager
+const isFabricComponentAvailable = () => {
+    return (react_native_1.UIManager.getViewManagerConfig &&
+        react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer") != null);
+};
 // Define the native component
 // @ts-ignore - TypeScript doesn't know about the props of the native component
-const NativeViroFabricContainer = (0, react_native_1.requireNativeComponent)("ViroFabricContainer");
+const NativeViroFabricContainer = isFabricComponentAvailable()
+    ? (0, react_native_1.requireNativeComponent)("ViroFabricContainer")
+    : () => {
+        console.error("ViroFabricContainer is not available. Make sure you have installed the native module properly.");
+        return null;
+    };
 /**
  * ViroFabricContainer is the main component that hosts the Viro rendering engine.
  * It creates a native view that the Viro renderer can draw on and manages the
@@ -58,34 +68,44 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
     const rootNodeId = (0, react_1.useRef)("viro_root_scene");
     // Initialize the Viro system when the component mounts
     (0, react_1.useEffect)(() => {
-        if (containerRef.current) {
+        if (containerRef.current && isFabricComponentAvailable()) {
             const nodeHandle = (0, react_native_1.findNodeHandle)(containerRef.current);
-            // Call the native method to initialize
-            if (react_native_1.Platform.OS === "ios") {
-                react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer").Commands
-                    .initialize, [apiKey, debug, arEnabled, worldAlignment]);
-            }
-            else {
-                // Android
-                react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, 
-                // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
-                react_native_1.UIManager.ViroFabricContainer.Commands.initialize.toString(), [apiKey, debug, arEnabled, worldAlignment]);
-            }
-        }
-        // Cleanup when unmounting
-        return () => {
-            if (containerRef.current) {
-                const nodeHandle = (0, react_native_1.findNodeHandle)(containerRef.current);
-                // Call the native method to cleanup
+            try {
+                // Call the native method to initialize
                 if (react_native_1.Platform.OS === "ios") {
                     react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer").Commands
-                        .cleanup, []);
+                        .initialize, [apiKey, debug, arEnabled, worldAlignment]);
                 }
                 else {
                     // Android
                     react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, 
                     // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
-                    react_native_1.UIManager.ViroFabricContainer.Commands.cleanup.toString(), []);
+                    react_native_1.UIManager.ViroFabricContainer.Commands.initialize.toString(), [apiKey, debug, arEnabled, worldAlignment]);
+                }
+            }
+            catch (error) {
+                console.error("Failed to initialize ViroFabricContainer:", error);
+            }
+        }
+        // Cleanup when unmounting
+        return () => {
+            if (containerRef.current && isFabricComponentAvailable()) {
+                const nodeHandle = (0, react_native_1.findNodeHandle)(containerRef.current);
+                try {
+                    // Call the native method to cleanup
+                    if (react_native_1.Platform.OS === "ios") {
+                        react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer").Commands
+                            .cleanup, []);
+                    }
+                    else {
+                        // Android
+                        react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, 
+                        // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
+                        react_native_1.UIManager.ViroFabricContainer.Commands.cleanup.toString(), []);
+                    }
+                }
+                catch (error) {
+                    console.error("Failed to cleanup ViroFabricContainer:", error);
                 }
             }
         };
@@ -108,6 +128,16 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
             onCameraTransformUpdate(event.nativeEvent);
         }
     };
+    // Check if the native component is available
+    if (!isFabricComponentAvailable()) {
+        console.error("ViroFabricContainer is not available. Make sure you have installed the native module properly and the New Architecture is enabled.");
+        return (<react_native_1.View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <react_native_1.Text>
+          ViroFabricContainer is not available. Please check the console for
+          more information.
+        </react_native_1.Text>
+      </react_native_1.View>);
+    }
     return (<NativeViroFabricContainer ref={containerRef} style={{ flex: 1 }} onInitialized={handleInitialized} onTrackingUpdated={handleTrackingUpdated} onCameraTransformUpdate={handleCameraTransformUpdate}>
       {children}
     </NativeViroFabricContainer>);
