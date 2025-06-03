@@ -37,21 +37,32 @@ If you are starting a fresh project with ViroReact, consider cloning one of our 
 
 ## React Native New Architecture Support
 
-ViroReact now supports React Native's New Architecture (Fabric). If your app has the New Architecture enabled, you can use the Fabric version of ViroReact components:
+ViroReact now supports React Native's New Architecture (Fabric) with automatic detection. The library will automatically detect whether your app is using the New Architecture and use the appropriate implementation:
 
 ```javascript
-// For apps using the Legacy Architecture
+// Import ViroReact components - they will automatically use the right implementation
 import { ViroARScene, Viro3DObject } from "@reactvision/react-viro";
+```
 
-// For apps using the New Architecture (Fabric)
+If you prefer to explicitly use a specific implementation, you can still do so:
+
+```javascript
+// Explicitly use the Legacy Architecture implementation
+import { ViroARScene, Viro3DObject } from "@reactvision/react-viro/index";
+
+// Explicitly use the New Architecture (Fabric) implementation
 import { ViroARScene, Viro3DObject } from "@reactvision/react-viro/fabric";
 ```
 
-The API remains the same, but the implementation uses the New Architecture under the hood, providing better performance and compatibility with future React Native versions.
+The API remains the same across all implementations, but the New Architecture version provides better performance and compatibility with future React Native versions.
+
+> **Note:** The Legacy Architecture support is deprecated and will be removed in version 3.0.0. We recommend enabling the New Architecture in your app for better performance and future compatibility.
 
 # Examples
 
-See our [Example projects](https://viro-community.readme.io/docs/examples) page. These are a little old (~2019) but are a great reference point for how to use bits of the library.
+Check out the [examples](./examples) directory for sample code demonstrating how to use ViroReact with automatic architecture detection and other features.
+
+You can also see our [Example projects](https://viro-community.readme.io/docs/examples) page. These are a little old (~2019) but are a great reference point for how to use bits of the library.
 
 # Need help? Or want to contribute?
 

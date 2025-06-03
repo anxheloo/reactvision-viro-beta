@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v2.43.1 - 2 June 2025
+
+- Added support for React Native New Architecture (Fabric) with automatic detection
+- Implemented a dynamic architecture detection mechanism that automatically uses the appropriate implementation based on the app's architecture
+- Added examples demonstrating how to use ViroReact with automatic architecture detection
+- Updated documentation with information about the New Architecture support
+- Deprecated legacy architecture support (will be removed in version 3.0.0)
+
 ## v2.42.0 - 7 February 2025
 
 - Compatibility with Expo 52
