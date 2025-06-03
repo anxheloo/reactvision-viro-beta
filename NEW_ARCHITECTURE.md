@@ -83,14 +83,67 @@ export default function App() {
 }
 ```
 
+## Installation
+
+To use Viro React Native with the New Architecture, you need to make sure your app has the New Architecture enabled and that you've properly installed the Fabric interop layer.
+
+### iOS
+
+For iOS, you need to add the `ViroFabric` pod to your Podfile:
+
+```ruby
+# Add Viro React Native
+# IMPORTANT: Order matters! ViroKit must be included before ViroFabric
+pod 'ViroReact', :path => '../node_modules/@reactvision/react-viro/ios'
+pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'
+
+# Add Viro Fabric components for New Architecture support
+# This is only needed if you're using the New Architecture
+# IMPORTANT: You must explicitly specify the path to the ViroFabric podspec
+if flags[:fabric_enabled]
+  pod 'ViroFabric', :path => '../node_modules/@reactvision/react-viro/fabric-interop/ios'
+end
+```
+
+> **Note:** There are two important requirements for the Podfile:
+>
+> 1. You must explicitly specify the path to the ViroFabric podspec as shown above. The ViroReact pod does not automatically include the ViroFabric pod.
+> 2. The order of the pods matters. ViroKit must be included before ViroFabric, as ViroFabric depends on ViroKit's headers.
+
+See the [examples/SamplePodfile](./examples/SamplePodfile) for a complete example.
+
+### Android
+
+For Android, the Fabric interop layer is now included in the build configuration when the New Architecture is enabled. If you're using the Expo plugin, this is handled automatically.
+
+If you're manually configuring your Android project, you need to:
+
+1. Add the Fabric interop module to your `settings.gradle`:
+
+```gradle
+include ':fabric-interop'
+project(':fabric-interop').projectDir = new File('../node_modules/@reactvision/react-viro/fabric-interop/android')
+```
+
+2. Add the dependency to your app's `build.gradle`:
+
+```gradle
+// Only add this if New Architecture is enabled
+implementation project(path: ':fabric-interop')
+```
+
+3. Make sure your app has the New Architecture enabled by setting `newArchEnabled=true` in your `gradle.properties` file.
+
+See the [examples/SamplePodfile](./examples/SamplePodfile) for iOS configuration and the documentation in [fabric-interop/README.md](./fabric-interop/README.md) for more details.
+
 ## Next Steps
 
 To complete the implementation, we need to:
 
-1. ✅ Update all components to use the ViroGlobal utility
-2. ✅ Ensure proper integration with the existing Fabric Interop Layer
-3. ✅ Test the library with both old and new architectures
-4. Update documentation and provide examples for using the library with the New Architecture
+1. ✅ Update all components to use the ViroGlobal utility (Completed)
+2. ✅ Ensure proper integration with the existing Fabric Interop Layer (Completed)
+3. Test the library with both old and new architectures
+4. ✅ Update documentation and provide examples for using the library with the New Architecture (Completed)
 
 ## Conclusion
 

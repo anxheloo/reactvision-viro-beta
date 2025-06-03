@@ -136,6 +136,10 @@ const withViroProjectBuildGradle = (config) => (0, config_plugins_1.withProjectB
     return newConfig;
 });
 const withViroAppBuildGradle = (config) => (0, config_plugins_1.withAppBuildGradle)(config, async (config) => {
+    // Check if New Architecture is enabled
+    const isNewArchEnabled = config.modResults.contents.includes("newArchEnabled=true") ||
+        config.modResults.contents.includes("reactNativeArchitectures=");
+    // Add Viro dependencies for legacy architecture
     config.modResults.contents = config.modResults.contents.replace(/implementation "com.facebook.react:react-native:\+"  \/\/ From node_modules/, `implementation "com.facebook.react:react-native:+"  // From node_modules
 
     // ========================================================================
@@ -144,20 +148,23 @@ const withViroAppBuildGradle = (config) => (0, config_plugins_1.withAppBuildGrad
     implementation project(':arcore_client')
     implementation project(path: ':react_viro')
     implementation project(path: ':viro_renderer')
+    ${isNewArchEnabled ? "implementation project(path: ':fabric-interop')" : ""}
     implementation 'androidx.media3:media3-exoplayer:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-smoothstreaming:1.1.1'
     implementation 'com.google.protobuf.nano:protobuf-javanano:3.1.0'
     // ========================================================================`);
+    // Add Viro dependencies for new architecture
     config.modResults.contents = config.modResults.contents.replace(/implementation\("com.facebook.react:react-android"\)/, `implementation("com.facebook.react:react-android")
 
-    // =====================================r===================================
+    // ========================================================================
     // https://viro-community.readme.io/docs/installation-instructions#2-in-your-androidappbuildgradle-add-the-following-lines-to-the-dependencies-section
     implementation project(':gvr_common')
     implementation project(':arcore_client')
     implementation project(path: ':react_viro')
     implementation project(path: ':viro_renderer')
+    ${isNewArchEnabled ? "implementation project(path: ':fabric-interop')" : ""}
     implementation 'androidx.media3:media3-exoplayer:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.1.1'
@@ -169,11 +176,12 @@ const withViroAppBuildGradle = (config) => (0, config_plugins_1.withAppBuildGrad
 });
 const withViroSettingsGradle = (config) => (0, config_plugins_1.withSettingsGradle)(config, async (config) => {
     config.modResults.contents += `
-include ':react_viro', ':arcore_client', ':gvr_common', ':viro_renderer'
+include ':react_viro', ':arcore_client', ':gvr_common', ':viro_renderer', ':fabric-interop'
 project(':arcore_client').projectDir = new File('../node_modules/@reactvision/react-viro/android/arcore_client')
 project(':gvr_common').projectDir = new File('../node_modules/@reactvision/react-viro/android/gvr_common')
 project(':viro_renderer').projectDir = new File('../node_modules/@reactvision/react-viro/android/viro_renderer')
 project(':react_viro').projectDir = new File('../node_modules/@reactvision/react-viro/android/react_viro')
+project(':fabric-interop').projectDir = new File('../node_modules/@reactvision/react-viro/fabric-interop/android')
     `;
     return config;
 });

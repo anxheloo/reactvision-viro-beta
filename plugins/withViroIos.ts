@@ -18,9 +18,33 @@ const withViroPods = (config: ExpoConfig) => {
       const root = newConfig.modRequest.platformProjectRoot;
 
       fs.readFile(`${root}/Podfile`, "utf-8", (err, data) => {
-        data = insertLinesHelper(
+        // Check if New Architecture is enabled in the Podfile
+        const isNewArchEnabled =
+          data.includes(":fabric_enabled => true") ||
+          data.includes(":fabric_enabled=>true") ||
+          data.includes(":fabric_enabled=> true") ||
+          data.includes(":fabric_enabled =>true");
+
+        // Add the standard Viro pods
+        // IMPORTANT: Order matters! ViroKit must be included before ViroFabric
+        let viroPods =
+          `  # Add Viro React Native\n` +
+          `  # IMPORTANT: Order matters! ViroKit must be included before ViroFabric\n` +
           `  pod 'ViroReact', :path => '../node_modules/@reactvision/react-viro/ios'\n` +
-            `  pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'\n`,
+          `  pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'`;
+
+        // Conditionally add the ViroFabric pod if New Architecture is enabled
+        if (isNewArchEnabled) {
+          viroPods +=
+            `\n\n  # Add Viro Fabric components for New Architecture support\n` +
+            `  # This is only needed if you're using the New Architecture\n` +
+            `  # IMPORTANT: You must explicitly specify the path to the ViroFabric podspec\n` +
+            `  pod 'ViroFabric', :path => '../node_modules/@reactvision/react-viro/fabric-interop/ios'`;
+        }
+
+        // Insert the pods into the Podfile
+        data = insertLinesHelper(
+          viroPods,
           "post_install do |installer|",
           data,
           -1

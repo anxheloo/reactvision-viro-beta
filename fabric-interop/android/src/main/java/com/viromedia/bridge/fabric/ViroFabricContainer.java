@@ -170,27 +170,65 @@ public class ViroFabricContainer extends FrameLayout {
     private native void initHybrid();
 
     /**
+     * Get the active navigator.
+     */
+    private ViewGroup getActiveNavigator() {
+        if (mARSceneNavigator != null) {
+            return mARSceneNavigator;
+        } else if (mVRSceneNavigator != null) {
+            return mVRSceneNavigator;
+        } else {
+            return mSceneNavigator;
+        }
+    }
+
+    /**
      * Create a node.
      */
     @DoNotStrip
     private void createNode(String nodeId, String nodeType, ReadableMap props) {
-        // This is a placeholder implementation
-        // In a real implementation, you would create the appropriate node type
-        // and add it to the scene graph
-
-        // For now, just store the node ID in the registry
+        // Get the appropriate navigator
+        ViewGroup navigator = getActiveNavigator();
+        if (navigator == null) {
+            System.err.println("Cannot create node: no active navigator");
+            return;
+        }
+        
+        // Store the node ID in the registry
         Map<String, Object> nodeInfo = new HashMap<>();
         nodeInfo.put("type", nodeType);
         nodeInfo.put("props", props != null ? props.toHashMap() : new HashMap<>());
         mNodeRegistry.put(nodeId, nodeInfo);
-
+        
         // If this is a scene node, add it to the navigator
         if ("scene".equals(nodeType)) {
-            // Create a scene and add it to the navigator
-            // This would use the existing VRTScene implementation
+            // For scene nodes, we need to create a VRTScene and set it on the navigator
+            if (mSceneNavigator != null) {
+                // Create a scene using the existing VRTScene implementation
+                com.viromedia.bridge.component.VRTScene scene = new com.viromedia.bridge.component.VRTScene(mReactContext);
+                scene.setProps(props);
+                mSceneNavigator.setScene(scene);
+                mNodeRegistry.put(nodeId, scene);
+            }
         } else if ("arScene".equals(nodeType)) {
-            // Create an AR scene and add it to the navigator
-            // This would use the existing VRTARScene implementation
+            // For AR scene nodes, we need to create a VRTARScene and set it on the navigator
+            if (mARSceneNavigator != null) {
+                // Create an AR scene using the existing VRTARScene implementation
+                com.viromedia.bridge.component.VRTARScene arScene = new com.viromedia.bridge.component.VRTARScene(mReactContext);
+                arScene.setProps(props);
+                mARSceneNavigator.setScene(arScene);
+                mNodeRegistry.put(nodeId, arScene);
+            }
+        } else {
+            // For other node types, create the appropriate VRT node and add it to the scene
+            // This would delegate to the existing VRT node creation logic
+            // For example, for a box:
+            if ("box".equals(nodeType)) {
+                com.viromedia.bridge.component.VRTBox box = new com.viromedia.bridge.component.VRTBox(mReactContext);
+                box.setProps(props);
+                mNodeRegistry.put(nodeId, box);
+            }
+            // Similar implementations for other node types
         }
     }
 
@@ -199,14 +237,24 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void updateNode(String nodeId, ReadableMap props) {
-        // This is a placeholder implementation
-        // In a real implementation, you would update the node's properties
-
-        // For now, just update the props in the registry
-        if (mNodeRegistry.containsKey(nodeId)) {
-            Map<String, Object> nodeInfo = (Map<String, Object>) mNodeRegistry.get(nodeId);
+        // Get the node from the registry
+        Object node = mNodeRegistry.get(nodeId);
+        if (node == null) {
+            System.err.println("Cannot update node: node not found");
+            return;
+        }
+        
+        // If the node is a VRT node, update its properties
+        if (node instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+            vrtNode.setProps(props);
+        } else {
+            // If it's just a dictionary (for nodes we don't have a VRT class for yet),
+            // update the props in the registry
+            Map<String, Object> nodeInfo = (Map<String, Object>) node;
             Map<String, Object> nodeProps = (Map<String, Object>) nodeInfo.get("props");
             nodeProps.putAll(props.toHashMap());
+            mNodeRegistry.put(nodeId, nodeInfo);
         }
     }
 
@@ -215,10 +263,23 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void deleteNode(String nodeId) {
-        // This is a placeholder implementation
-        // In a real implementation, you would remove the node from the scene graph
-
-        // For now, just remove the node from the registry
+        // Get the node from the registry
+        Object node = mNodeRegistry.get(nodeId);
+        if (node == null) {
+            System.err.println("Cannot delete node: node not found");
+            return;
+        }
+        
+        // If the node is a VRT node, remove it from its parent
+        if (node instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+            ViewGroup parent = (ViewGroup) vrtNode.getParent();
+            if (parent != null) {
+                parent.removeView(vrtNode);
+            }
+        }
+        
+        // Remove the node from the registry
         mNodeRegistry.remove(nodeId);
     }
 
@@ -227,17 +288,29 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void addChild(String childId, String parentId) {
-        // This is a placeholder implementation
-        // In a real implementation, you would add the child node to the parent node
-
-        // For now, just update the parent-child relationship in the registry
-        if (mNodeRegistry.containsKey(parentId)) {
-            Map<String, Object> parentInfo = (Map<String, Object>) mNodeRegistry.get(parentId);
+        // Get the parent and child nodes from the registry
+        Object parent = mNodeRegistry.get(parentId);
+        Object child = mNodeRegistry.get(childId);
+        
+        if (parent == null || child == null) {
+            System.err.println("Cannot add child: parent or child not found");
+            return;
+        }
+        
+        // If both parent and child are VRT nodes, add the child to the parent
+        if (parent instanceof com.viromedia.bridge.component.VRTNode && child instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode parentNode = (com.viromedia.bridge.component.VRTNode) parent;
+            com.viromedia.bridge.component.VRTNode childNode = (com.viromedia.bridge.component.VRTNode) child;
+            parentNode.addView(childNode);
+        } else {
+            // If they're not both VRT nodes, update the parent-child relationship in the registry
+            Map<String, Object> parentInfo = (parent instanceof Map) ? (Map<String, Object>) parent : new HashMap<>();
             if (!parentInfo.containsKey("children")) {
                 parentInfo.put("children", new HashMap<String, Object>());
             }
             Map<String, Object> children = (Map<String, Object>) parentInfo.get("children");
             children.put(childId, true);
+            mNodeRegistry.put(parentId, parentInfo);
         }
     }
 
@@ -246,15 +319,28 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void removeChild(String childId, String parentId) {
-        // This is a placeholder implementation
-        // In a real implementation, you would remove the child node from the parent node
-
-        // For now, just update the parent-child relationship in the registry
-        if (mNodeRegistry.containsKey(parentId)) {
-            Map<String, Object> parentInfo = (Map<String, Object>) mNodeRegistry.get(parentId);
-            if (parentInfo.containsKey("children")) {
-                Map<String, Object> children = (Map<String, Object>) parentInfo.get("children");
-                children.remove(childId);
+        // Get the parent and child nodes from the registry
+        Object parent = mNodeRegistry.get(parentId);
+        Object child = mNodeRegistry.get(childId);
+        
+        if (parent == null || child == null) {
+            System.err.println("Cannot remove child: parent or child not found");
+            return;
+        }
+        
+        // If both parent and child are VRT nodes, remove the child from the parent
+        if (parent instanceof com.viromedia.bridge.component.VRTNode && child instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode parentNode = (com.viromedia.bridge.component.VRTNode) parent;
+            com.viromedia.bridge.component.VRTNode childNode = (com.viromedia.bridge.component.VRTNode) child;
+            parentNode.removeView(childNode);
+        } else {
+            // If they're not both VRT nodes, update the parent-child relationship in the registry
+            if (parent instanceof Map) {
+                Map<String, Object> parentInfo = (Map<String, Object>) parent;
+                if (parentInfo.containsKey("children")) {
+                    Map<String, Object> children = (Map<String, Object>) parentInfo.get("children");
+                    children.remove(childId);
+                }
             }
         }
     }
@@ -264,12 +350,49 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void registerEventCallback(String callbackId, String eventName, String nodeId) {
-        // This is a placeholder implementation
-        // In a real implementation, you would register the event callback with the node
-
-        // For now, just store the callback ID in the registry
+        // Get the node from the registry
+        Object node = mNodeRegistry.get(nodeId);
+        if (node == null) {
+            System.err.println("Cannot register event callback: node not found");
+            return;
+        }
+        
+        // Store the callback ID in the registry
         String key = nodeId + "_" + eventName;
         mEventCallbackRegistry.put(key, callbackId);
+        
+        // If the node is a VRT node, register the event callback
+        if (node instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+            
+            // Create a callback that will dispatch the event to JS
+            com.viromedia.bridge.component.VRTEventListener listener = new com.viromedia.bridge.component.VRTEventListener() {
+                @Override
+                public void onEvent(Map<String, Object> event) {
+                    // Convert the event to a ReadableMap
+                    WritableMap writableEvent = new WritableNativeMap();
+                    for (Map.Entry<String, Object> entry : event.entrySet()) {
+                        String key = entry.getKey();
+                        Object value = entry.getValue();
+                        if (value instanceof String) {
+                            writableEvent.putString(key, (String) value);
+                        } else if (value instanceof Integer) {
+                            writableEvent.putInt(key, (Integer) value);
+                        } else if (value instanceof Double) {
+                            writableEvent.putDouble(key, (Double) value);
+                        } else if (value instanceof Boolean) {
+                            writableEvent.putBoolean(key, (Boolean) value);
+                        }
+                    }
+                    
+                    // Dispatch the event to JS
+                    dispatchEventToJS(callbackId, writableEvent);
+                }
+            };
+            
+            // Register the event callback with the node
+            vrtNode.addEventListener(eventName, listener);
+        }
     }
 
     /**
@@ -277,26 +400,47 @@ public class ViroFabricContainer extends FrameLayout {
      */
     @DoNotStrip
     private void unregisterEventCallback(String callbackId, String eventName, String nodeId) {
-        // This is a placeholder implementation
-        // In a real implementation, you would unregister the event callback from the node
-
-        // For now, just remove the callback ID from the registry
+        // Get the node from the registry
+        Object node = mNodeRegistry.get(nodeId);
+        if (node == null) {
+            System.err.println("Cannot unregister event callback: node not found");
+            return;
+        }
+        
+        // Remove the callback ID from the registry
         String key = nodeId + "_" + eventName;
         mEventCallbackRegistry.remove(key);
+        
+        // If the node is a VRT node, unregister the event callback
+        if (node instanceof com.viromedia.bridge.component.VRTNode) {
+            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+            
+            // Unregister the event callback from the node
+            vrtNode.removeEventListener(eventName);
+        }
     }
 
     /**
      * Dispatch an event to JavaScript.
+     * This method is implemented in C++ (ViroFabricContainerJSI.cpp)
+     * and will call the handleViroEvent function in JavaScript.
      */
     @DoNotStrip
-    private void dispatchEventToJS(String callbackId, ReadableMap data) {
-        // This is a placeholder implementation
-        // In a real implementation, you would dispatch the event to JS
-
-        // For now, just log the event
-        System.out.println("Dispatching event to JS: " + callbackId + " with data: " + data);
-
-        // In a real implementation, you would use JSI to call the handleViroEvent function
-        // This would be done through the C++ bridge
+    private native void dispatchEventToJS(String callbackId, ReadableMap data);
+    
+    /**
+     * Implementation of the dispatchEventToJS method for the C++ side.
+     * This method is called from C++ to dispatch events to JavaScript.
+     */
+    @DoNotStrip
+    private void dispatchEventToJSImpl(String callbackId, ReadableMap data) {
+        // Get the JSI runtime
+        if (mHybridData == null) {
+            System.err.println("Cannot dispatch event to JS: hybrid data is null");
+            return;
+        }
+        
+        // Call the native method
+        dispatchEventToJS(callbackId, data);
     }
 }

@@ -331,6 +331,9 @@ private:
                 // Find the callback in the global registry
                 auto callbackRegistry = rt.global().getProperty(rt, "eventCallbacks");
                 if (!callbackRegistry.isObject()) {
+                    // Create the callback registry if it doesn't exist
+                    auto newRegistry = jsi::Object(rt);
+                    rt.global().setProperty(rt, "eventCallbacks", newRegistry);
                     return jsi::Value::undefined();
                 }
                 
@@ -344,6 +347,41 @@ private:
                 // Call the callback with the event
                 auto callbackFunc = callback.getObject(rt).getFunction(rt);
                 callbackFunc.call(rt, event);
+                
+                return jsi::Value::undefined();
+            }
+        ));
+        
+        // Add a method to register event callbacks
+        runtime.global().setProperty(runtime, "registerViroEventCallback", jsi::Function::createFromHostFunction(
+            runtime,
+            jsi::PropNameID::forAscii(runtime, "registerViroEventCallback"),
+            2,  // callbackId, callback
+            [](jsi::Runtime& rt, const jsi::Value& thisValue, const jsi::Value* args, size_t count) -> jsi::Value {
+                if (count < 2) {
+                    return jsi::Value::undefined();
+                }
+                
+                auto callbackId = args[0].getString(rt);
+                auto callback = args[1];
+                
+                if (!callback.isObject() || !callback.getObject(rt).isFunction(rt)) {
+                    return jsi::Value::undefined();
+                }
+                
+                // Get or create the callback registry
+                auto callbackRegistry = rt.global().getProperty(rt, "eventCallbacks");
+                jsi::Object callbackRegistryObj(rt);
+                
+                if (!callbackRegistry.isObject()) {
+                    callbackRegistryObj = jsi::Object(rt);
+                    rt.global().setProperty(rt, "eventCallbacks", callbackRegistryObj);
+                } else {
+                    callbackRegistryObj = callbackRegistry.getObject(rt);
+                }
+                
+                // Store the callback in the registry
+                callbackRegistryObj.setProperty(rt, callbackId.utf8(rt).c_str(), callback);
                 
                 return jsi::Value::undefined();
             }

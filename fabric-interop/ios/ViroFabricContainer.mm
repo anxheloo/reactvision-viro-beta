@@ -14,9 +14,10 @@
 #import <jsi/jsi.h>
 
 // Import existing Viro headers
-#import "VRTSceneNavigator.h"
-#import "VRTARSceneNavigator.h"
-#import "VRTVRSceneNavigator.h"
+#import <ViroReact/VRTSceneNavigator.h>
+#import <ViroReact/VRTARSceneNavigator.h>
+#import <ViroReact/VRTVRSceneNavigator.h>
+#import <ViroReact/VRTManagedAnimation.h>
 
 using namespace facebook::jsi;
 
@@ -332,30 +333,63 @@ using namespace facebook::jsi;
 #pragma mark - Node Management
 
 - (void)createNode:(NSString *)nodeId ofType:(NSString *)nodeType withProps:(NSDictionary *)props {
-    // This is a placeholder implementation
-    // In a real implementation, you would create the appropriate node type
-    // and add it to the scene graph
+    // Get the appropriate navigator
+    VRTSceneNavigator *navigator = [self getActiveNavigator];
+    if (!navigator) {
+        RCTLogError(@"Cannot create node: no active navigator");
+        return;
+    }
     
-    // For now, just store the node ID in the registry
+    // Store the node ID in the registry
     _nodeRegistry[nodeId] = @{@"type": nodeType, @"props": props ?: @{}};
     
     // If this is a scene node, add it to the navigator
     if ([nodeType isEqualToString:@"scene"]) {
-        // Create a scene and add it to the navigator
-        // This would use the existing VRTScene implementation
+        // For scene nodes, we need to create a VRTScene and set it on the navigator
+        if (_sceneNavigator) {
+            // Create a scene using the existing VRTScene implementation
+            VRTScene *scene = [[VRTScene alloc] initWithBridge:_bridge];
+            [scene setProps:props];
+            [_sceneNavigator setScene:scene];
+            _nodeRegistry[nodeId] = scene;
+        }
     } else if ([nodeType isEqualToString:@"arScene"]) {
-        // Create an AR scene and add it to the navigator
-        // This would use the existing VRTARScene implementation
+        // For AR scene nodes, we need to create a VRTARScene and set it on the navigator
+        if (_arSceneNavigator) {
+            // Create an AR scene using the existing VRTARScene implementation
+            VRTARScene *arScene = [[VRTARScene alloc] initWithBridge:_bridge];
+            [arScene setProps:props];
+            [_arSceneNavigator setScene:arScene];
+            _nodeRegistry[nodeId] = arScene;
+        }
+    } else {
+        // For other node types, create the appropriate VRT node and add it to the scene
+        // This would delegate to the existing VRT node creation logic
+        // For example, for a box:
+        if ([nodeType isEqualToString:@"box"]) {
+            VRTBox *box = [[VRTBox alloc] initWithBridge:_bridge];
+            [box setProps:props];
+            _nodeRegistry[nodeId] = box;
+        }
+        // Similar implementations for other node types
     }
 }
 
 - (void)updateNode:(NSString *)nodeId withProps:(NSDictionary *)props {
-    // This is a placeholder implementation
-    // In a real implementation, you would update the node's properties
+    // Get the node from the registry
+    id node = _nodeRegistry[nodeId];
+    if (!node) {
+        RCTLogError(@"Cannot update node: node not found");
+        return;
+    }
     
-    // For now, just update the props in the registry
-    NSMutableDictionary *nodeInfo = [_nodeRegistry[nodeId] mutableCopy];
-    if (nodeInfo) {
+    // If the node is a VRT node, update its properties
+    if ([node isKindOfClass:[VRTNode class]]) {
+        [(VRTNode *)node setProps:props];
+    } else {
+        // If it's just a dictionary (for nodes we don't have a VRT class for yet),
+        // update the props in the registry
+        NSMutableDictionary *nodeInfo = [node mutableCopy];
         NSMutableDictionary *nodeProps = [nodeInfo[@"props"] mutableCopy];
         [nodeProps addEntriesFromDictionary:props];
         nodeInfo[@"props"] = nodeProps;
@@ -364,20 +398,41 @@ using namespace facebook::jsi;
 }
 
 - (void)deleteNode:(NSString *)nodeId {
-    // This is a placeholder implementation
-    // In a real implementation, you would remove the node from the scene graph
+    // Get the node from the registry
+    id node = _nodeRegistry[nodeId];
+    if (!node) {
+        RCTLogError(@"Cannot delete node: node not found");
+        return;
+    }
     
-    // For now, just remove the node from the registry
+    // If the node is a VRT node, remove it from its parent
+    if ([node isKindOfClass:[VRTNode class]]) {
+        VRTNode *vrtNode = (VRTNode *)node;
+        [vrtNode removeFromParent];
+    }
+    
+    // Remove the node from the registry
     [_nodeRegistry removeObjectForKey:nodeId];
 }
 
 - (void)addChild:(NSString *)childId toParent:(NSString *)parentId {
-    // This is a placeholder implementation
-    // In a real implementation, you would add the child node to the parent node
+    // Get the parent and child nodes from the registry
+    id parent = _nodeRegistry[parentId];
+    id child = _nodeRegistry[childId];
     
-    // For now, just update the parent-child relationship in the registry
-    NSMutableDictionary *parentInfo = [_nodeRegistry[parentId] mutableCopy];
-    if (parentInfo) {
+    if (!parent || !child) {
+        RCTLogError(@"Cannot add child: parent or child not found");
+        return;
+    }
+    
+    // If both parent and child are VRT nodes, add the child to the parent
+    if ([parent isKindOfClass:[VRTNode class]] && [child isKindOfClass:[VRTNode class]]) {
+        VRTNode *parentNode = (VRTNode *)parent;
+        VRTNode *childNode = (VRTNode *)child;
+        [parentNode addChildNode:childNode];
+    } else {
+        // If they're not both VRT nodes, update the parent-child relationship in the registry
+        NSMutableDictionary *parentInfo = [parent isKindOfClass:[NSDictionary class]] ? [parent mutableCopy] : [NSMutableDictionary new];
         NSMutableArray *children = [parentInfo[@"children"] mutableCopy] ?: [NSMutableArray new];
         [children addObject:childId];
         parentInfo[@"children"] = children;
@@ -386,12 +441,22 @@ using namespace facebook::jsi;
 }
 
 - (void)removeChild:(NSString *)childId fromParent:(NSString *)parentId {
-    // This is a placeholder implementation
-    // In a real implementation, you would remove the child node from the parent node
+    // Get the parent and child nodes from the registry
+    id parent = _nodeRegistry[parentId];
+    id child = _nodeRegistry[childId];
     
-    // For now, just update the parent-child relationship in the registry
-    NSMutableDictionary *parentInfo = [_nodeRegistry[parentId] mutableCopy];
-    if (parentInfo) {
+    if (!parent || !child) {
+        RCTLogError(@"Cannot remove child: parent or child not found");
+        return;
+    }
+    
+    // If both parent and child are VRT nodes, remove the child from the parent
+    if ([parent isKindOfClass:[VRTNode class]] && [child isKindOfClass:[VRTNode class]]) {
+        VRTNode *childNode = (VRTNode *)child;
+        [childNode removeFromParent];
+    } else {
+        // If they're not both VRT nodes, update the parent-child relationship in the registry
+        NSMutableDictionary *parentInfo = [parent isKindOfClass:[NSDictionary class]] ? [parent mutableCopy] : [NSMutableDictionary new];
         NSMutableArray *children = [parentInfo[@"children"] mutableCopy];
         [children removeObject:childId];
         parentInfo[@"children"] = children;
@@ -399,34 +464,69 @@ using namespace facebook::jsi;
     }
 }
 
+// Helper method to get the active navigator
+- (VRTSceneNavigator *)getActiveNavigator {
+    if (_arSceneNavigator) {
+        return _arSceneNavigator;
+    } else if (_vrSceneNavigator) {
+        return _vrSceneNavigator;
+    } else {
+        return _sceneNavigator;
+    }
+}
+
 #pragma mark - Event Handling
 
 - (void)registerEventCallback:(NSString *)callbackId forEvent:(NSString *)eventName onNode:(NSString *)nodeId {
-    // This is a placeholder implementation
-    // In a real implementation, you would register the event callback with the node
+    // Get the node from the registry
+    id node = _nodeRegistry[nodeId];
+    if (!node) {
+        RCTLogError(@"Cannot register event callback: node not found");
+        return;
+    }
     
-    // For now, just store the callback ID in the registry
+    // Store the callback ID in the registry
     NSString *key = [NSString stringWithFormat:@"%@_%@", nodeId, eventName];
     _eventCallbackRegistry[key] = callbackId;
+    
+    // If the node is a VRT node, register the event callback
+    if ([node isKindOfClass:[VRTNode class]]) {
+        VRTNode *vrtNode = (VRTNode *)node;
+        
+        // Create a block that will dispatch the event to JS
+        __weak ViroFabricContainer *weakSelf = self;
+        VRTEventCallback callback = ^(NSDictionary *event) {
+            [weakSelf dispatchEventToJS:callbackId withData:event];
+        };
+        
+        // Register the event callback with the node
+        [vrtNode registerEventCallback:callback withName:eventName];
+    }
 }
 
 - (void)unregisterEventCallback:(NSString *)callbackId forEvent:(NSString *)eventName onNode:(NSString *)nodeId {
-    // This is a placeholder implementation
-    // In a real implementation, you would unregister the event callback from the node
+    // Get the node from the registry
+    id node = _nodeRegistry[nodeId];
+    if (!node) {
+        RCTLogError(@"Cannot unregister event callback: node not found");
+        return;
+    }
     
-    // For now, just remove the callback ID from the registry
+    // Remove the callback ID from the registry
     NSString *key = [NSString stringWithFormat:@"%@_%@", nodeId, eventName];
     [_eventCallbackRegistry removeObjectForKey:key];
+    
+    // If the node is a VRT node, unregister the event callback
+    if ([node isKindOfClass:[VRTNode class]]) {
+        VRTNode *vrtNode = (VRTNode *)node;
+        
+        // Unregister the event callback from the node
+        [vrtNode unregisterEventCallback:eventName];
+    }
 }
 
 - (void)dispatchEventToJS:(NSString *)callbackId withData:(NSDictionary *)data {
-    // This is a placeholder implementation
-    // In a real implementation, you would dispatch the event to JS
-    
-    // For now, just log the event
-    RCTLogInfo(@"Dispatching event to JS: %@ with data: %@", callbackId, data);
-    
-    // In a real implementation, you would use JSI to call the handleViroEvent function
+    // Use JSI to call the handleViroEvent function in JavaScript
     if (_runtime) {
         auto &runtime = *_runtime;
         
@@ -434,8 +534,19 @@ using namespace facebook::jsi;
         auto jsData = [self convertObjCToJSIValue:data runtime:runtime];
         
         // Call the handleViroEvent function
-        auto handleViroEvent = runtime.global().getPropertyAsFunction(runtime, "handleViroEvent");
-        handleViroEvent.call(runtime, String::createFromUtf8(runtime, [callbackId UTF8String]), jsData);
+        try {
+            auto global = runtime.global();
+            if (global.hasProperty(runtime, "handleViroEvent")) {
+                auto handleViroEvent = global.getPropertyAsFunction(runtime, "handleViroEvent");
+                handleViroEvent.call(runtime, String::createFromUtf8(runtime, [callbackId UTF8String]), jsData);
+            } else {
+                RCTLogError(@"handleViroEvent function not found in global object");
+            }
+        } catch (const std::exception &e) {
+            RCTLogError(@"Error dispatching event to JS: %s", e.what());
+        }
+    } else {
+        RCTLogError(@"Cannot dispatch event to JS: runtime not available");
     }
 }
 
