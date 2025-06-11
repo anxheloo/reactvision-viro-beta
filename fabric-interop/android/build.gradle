@@ -1,0 +1,60 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion rootProject.ext.has("compileSdkVersion") ? rootProject.ext.get("compileSdkVersion") : 33
+    
+    defaultConfig {
+        minSdkVersion rootProject.ext.has("minSdkVersion") ? rootProject.ext.get("minSdkVersion") : 24
+        targetSdkVersion rootProject.ext.has("targetSdkVersion") ? rootProject.ext.get("targetSdkVersion") : 33
+        versionCode 1
+        versionName "1.0"
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            cpp.srcDirs = ['src/main/cpp']
+        }
+    }
+    
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+        }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    maven {
+        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+        url "$rootDir/../node_modules/react-native/android"
+    }
+}
+
+dependencies {
+    implementation "com.facebook.react:react-android:+"
+    implementation project(':react_viro')
+    implementation project(':viro_renderer')
+}

@@ -98,10 +98,12 @@ The interop layer:
 The key advantage of this approach is that it reuses the existing Viro native implementation:
 
 - **iOS**: Uses existing VRTSceneNavigator, VRTARSceneNavigator, and other VRT\* classes
-- **Android**: Uses existing VRTSceneNavigator, VRTARSceneNavigator, and other VRT\* classes
+- **Android**: Uses existing VRTSceneNavigator, VRTARSceneNavigator, VRTVRSceneNavigator, and other VRT\* classes
 - **Rendering**: All rendering is handled by the existing Viro renderer
 
 This means that all the complex AR/VR functionality, rendering, physics, etc. don't need to be reimplemented - the interop layer simply provides a new way to access this functionality that's compatible with React Native's New Architecture.
+
+> **Note:** VR functionality is not supported on iOS. The VR feature has been removed from the iOS implementation, but is still available on Android.
 
 ## Installation
 
@@ -115,12 +117,9 @@ To use the Fabric interop layer in your iOS app, you need to add the `ViroFabric
 pod 'ViroReact', :path => '../node_modules/@reactvision/react-viro/ios'
 pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'
 
-# Add Viro Fabric components for New Architecture support
-# This is only needed if you're using the New Architecture
+# Add Viro Fabric components for New Architecture
 # IMPORTANT: You must explicitly specify the path to the ViroFabric podspec
-if flags[:fabric_enabled]
-  pod 'ViroFabric', :path => '../node_modules/@reactvision/react-viro/fabric-interop/ios'
-end
+pod 'ViroFabric', :path => '../node_modules/@reactvision/react-viro/fabric-interop/ios'
 ```
 
 > **Note:** There are two important requirements for the Podfile:
@@ -130,7 +129,7 @@ end
 
 ### Android
 
-For Android, you need to ensure the Fabric interop layer is included in your project. If you're using the Expo plugin, this is handled automatically when the New Architecture is enabled.
+For Android, you need to ensure the Fabric interop layer is included in your project. If you're using the Expo plugin, this is handled automatically.
 
 If you're manually configuring your Android project, you need to:
 
@@ -144,22 +143,33 @@ project(':fabric-interop').projectDir = new File('../node_modules/@reactvision/r
 2. Add the dependency to your app's `build.gradle`:
 
 ```gradle
-// Only add this if New Architecture is enabled
 implementation project(path: ':fabric-interop')
 ```
 
 3. Make sure your app has the New Architecture enabled by setting `newArchEnabled=true` in your `gradle.properties` file.
 
+The Fabric interop layer for Android includes a proper Gradle configuration with:
+
+- A `build.gradle` file that defines the module's dependencies and build configuration
+- An `AndroidManifest.xml` file
+- ProGuard rules for proper code shrinking
+- CMake configuration for native code compilation
+
+This ensures that the module can be properly integrated into any Android project that uses Gradle as its build system.
+
 ## Usage
 
-When using the New Architecture, you should import components from the `@reactvision/react-viro/fabric` path instead of directly from `@reactvision/react-viro`:
+Since the New Architecture is now mandatory, you should import components from the `@reactvision/react-viro/fabric` path:
 
 ```javascript
-// Old way (still works for legacy architecture)
-import { ViroARSceneNavigator } from "@reactvision/react-viro";
-
-// New way (works with both legacy and new architectures)
 import { ViroARSceneNavigator } from "@reactvision/react-viro/fabric";
+```
+
+The legacy import path is deprecated and will be removed in a future version:
+
+```javascript
+// DEPRECATED - will be removed in a future version
+import { ViroARSceneNavigator } from "@reactvision/react-viro";
 ```
 
 ## Troubleshooting
@@ -183,21 +193,19 @@ If you encounter errors like `'ViroKit/ViroKit.h' file not found` or `'VRTManage
    #import <ViroReact/VRTSceneNavigator.h>
    #import <ViroReact/VRTARSceneNavigator.h>
    ```
-3. For VRTManagedAnimation.h specifically, use a direct import:
+3. For VRTManagedAnimation.h, import it from ViroKit:
    ```objc
-   #import "VRTManagedAnimation.h"
+   #import <ViroKit/VRTManagedAnimation.h>
    ```
-4. The order of pods in your Podfile is correct (ViroKit before ViroFabric)
+4. The order of pods in your Podfile is critical (ViroKit must be included before ViroFabric):
+   ```ruby
+   pod 'ViroReact', :path => '../node_modules/@reactvision/react-viro/ios'
+   pod 'ViroKit', :path => '../node_modules/@reactvision/react-viro/ios/dist/ViroRenderer/'
+   pod 'ViroFabric', :path => '../node_modules/@reactvision/react-viro/fabric-interop/ios'
+   ```
 5. You've run `pod install` after making any changes to your Podfile
 
-If you're still having issues with header files, you may need to manually copy the missing header files to your project. For example:
-
-```bash
-# Copy VRTManagedAnimation.h to the fabric-interop/ios directory
-cp node_modules/@reactvision/react-viro/ios/VRTManagedAnimation.h node_modules/@reactvision/react-viro/fabric-interop/ios/
-```
-
-Note that the VRTManagedAnimation.h file is already included in the fabric-interop/ios directory in the repository, so you shouldn't need to copy it manually unless you're using a custom setup.
+The key point is that VRTManagedAnimation.h is part of the ViroKit framework, not a standalone header. By importing it directly from ViroKit, you ensure that the compiler can find it regardless of where the pod is installed.
 
 ### Other Issues
 

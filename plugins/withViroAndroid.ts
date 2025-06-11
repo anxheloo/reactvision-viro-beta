@@ -194,11 +194,6 @@ const withViroProjectBuildGradle = (config: ExpoConfig) =>
 
 const withViroAppBuildGradle = (config: ExpoConfig) =>
   withAppBuildGradle(config, async (config) => {
-    // Check if New Architecture is enabled
-    const isNewArchEnabled =
-      config.modResults.contents.includes("newArchEnabled=true") ||
-      config.modResults.contents.includes("reactNativeArchitectures=");
-
     // Add Viro dependencies for legacy architecture
     config.modResults.contents = config.modResults.contents.replace(
       /implementation "com.facebook.react:react-native:\+"  \/\/ From node_modules/,
@@ -210,7 +205,7 @@ const withViroAppBuildGradle = (config: ExpoConfig) =>
     implementation project(':arcore_client')
     implementation project(path: ':react_viro')
     implementation project(path: ':viro_renderer')
-    ${isNewArchEnabled ? "implementation project(path: ':fabric-interop')" : ""}
+    implementation project(path: ':fabric-interop')
     implementation 'androidx.media3:media3-exoplayer:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.1.1'
@@ -230,7 +225,7 @@ const withViroAppBuildGradle = (config: ExpoConfig) =>
     implementation project(':arcore_client')
     implementation project(path: ':react_viro')
     implementation project(path: ':viro_renderer')
-    ${isNewArchEnabled ? "implementation project(path: ':fabric-interop')" : ""}
+    implementation project(path: ':fabric-interop')
     implementation 'androidx.media3:media3-exoplayer:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.1.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.1.1'

@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
   # Ensure we're using C++17 and proper header search paths
   s.pod_target_xcconfig = { 
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
-    'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/../../node_modules/react-native/ReactCommon" "$(PODS_ROOT)/Headers/Public" "$(PODS_ROOT)/Headers/Public/ViroKit" "$(PODS_ROOT)/ViroKit/dist/include" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios/dist/include" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios/ViroReact" "$(PODS_TARGET_SRCROOT)"'
+    'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/../../node_modules/react-native/ReactCommon" "$(PODS_ROOT)/Headers/Public" "$(PODS_ROOT)/Headers/Public/ViroKit" "$(PODS_ROOT)/ViroKit/dist/include" "$(PODS_ROOT)/ViroKit/Headers" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios/dist/include" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios" "$(PODS_ROOT)/../node_modules/@reactvision/react-viro/ios/ViroReact" "$(PODS_TARGET_SRCROOT)"'
   }
   
   # Include the iOS directory as a source directory to find all headers

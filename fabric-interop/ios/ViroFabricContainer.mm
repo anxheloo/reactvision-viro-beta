@@ -16,9 +16,8 @@
 // Import existing Viro headers
 #import <ViroReact/VRTSceneNavigator.h>
 #import <ViroReact/VRTARSceneNavigator.h>
-#import <ViroReact/VRTVRSceneNavigator.h>
-// Import VRTManagedAnimation directly
-#import "VRTManagedAnimation.h"
+// Import VRTManagedAnimation from ViroKit
+#import <ViroKit/VRTManagedAnimation.h>
 
 using namespace facebook::jsi;
 
@@ -26,7 +25,6 @@ using namespace facebook::jsi;
     // Reference to the existing Viro navigator
     VRTSceneNavigator *_sceneNavigator;
     VRTARSceneNavigator *_arSceneNavigator;
-    VRTVRSceneNavigator *_vrSceneNavigator;
     
     // JSI runtime
     std::shared_ptr<facebook::jsi::Runtime> _runtime;
@@ -39,9 +37,6 @@ using namespace facebook::jsi;
     
     // Flag to track if we're using AR
     BOOL _isAR;
-    
-    // Flag to track if we're using VR
-    BOOL _isVR;
     
     // Bridge reference
     __weak RCTBridge *_bridge;
@@ -57,7 +52,6 @@ using namespace facebook::jsi;
         _nodeRegistry = [NSMutableDictionary new];
         _eventCallbackRegistry = [NSMutableDictionary new];
         _isAR = NO;
-        _isVR = NO;
         
         // Get the JSI runtime
         _runtime = bridge.jsCallInvoker.runtime();
@@ -77,9 +71,6 @@ using namespace facebook::jsi;
     }
     if (_arSceneNavigator) {
         _arSceneNavigator.frame = self.bounds;
-    }
-    if (_vrSceneNavigator) {
-        _vrSceneNavigator.frame = self.bounds;
     }
 }
 
@@ -104,10 +95,6 @@ using namespace facebook::jsi;
         } else {
             _arSceneNavigator.worldAlignment = VROWorldAlignment::Gravity;
         }
-    } else if (_isVR) {
-        _vrSceneNavigator = [[VRTVRSceneNavigator alloc] initWithFrame:self.bounds];
-        [_vrSceneNavigator setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
-        [self addSubview:_vrSceneNavigator];
     } else {
         _sceneNavigator = [[VRTSceneNavigator alloc] initWithFrame:self.bounds];
         [_sceneNavigator setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
@@ -130,10 +117,6 @@ using namespace facebook::jsi;
         [_arSceneNavigator removeFromSuperview];
         _arSceneNavigator = nil;
     }
-    if (_vrSceneNavigator) {
-        [_vrSceneNavigator removeFromSuperview];
-        _vrSceneNavigator = nil;
-    }
     
     // Clear node registry
     [_nodeRegistry removeAllObjects];
@@ -143,7 +126,6 @@ using namespace facebook::jsi;
     
     // Reset flags
     _isAR = NO;
-    _isVR = NO;
 }
 
 #pragma mark - JSI Bindings
@@ -469,8 +451,6 @@ using namespace facebook::jsi;
 - (VRTSceneNavigator *)getActiveNavigator {
     if (_arSceneNavigator) {
         return _arSceneNavigator;
-    } else if (_vrSceneNavigator) {
-        return _vrSceneNavigator;
     } else {
         return _sceneNavigator;
     }
