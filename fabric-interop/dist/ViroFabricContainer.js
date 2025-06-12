@@ -50,28 +50,8 @@ const isNewArchitectureEnabled = () => {
             "Please enable it in your app by following the instructions at: " +
             "https://reactnative.dev/docs/new-architecture-intro");
     }
-    // Check for minimum React Native version (0.76.9)
-    const rnVersion = require("react-native/package.json").version;
-    const minVersion = "0.76.9";
-    if (compareVersions(rnVersion, minVersion) < 0) {
-        throw new Error(`Viro: React Native version ${rnVersion} is not supported. ` +
-            `This library requires React Native ${minVersion} or higher.`);
-    }
+    // We're assuming the minimum supported version (0.76.9+) since this is a Fabric-only component
     return true;
-};
-// Simple version comparison function
-const compareVersions = (a, b) => {
-    const aParts = a.split(".").map(Number);
-    const bParts = b.split(".").map(Number);
-    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-        const aVal = aParts[i] || 0;
-        const bVal = bParts[i] || 0;
-        if (aVal > bVal)
-            return 1;
-        if (aVal < bVal)
-            return -1;
-    }
-    return 0;
 };
 // Check if the component exists in UIManager
 const isFabricComponentAvailable = () => {

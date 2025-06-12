@@ -19,11 +19,16 @@ if (!isNewArchitectureEnabled()) {
 }
 
 android {
-    compileSdkVersion rootProject.ext.has("compileSdkVersion") ? rootProject.ext.get("compileSdkVersion") : 33
+    compileSdkVersion 34
+    namespace "com.viromedia.bridge.fabric"
+    
+    buildFeatures {
+        buildConfig true
+    }
     
     defaultConfig {
-        minSdkVersion rootProject.ext.has("minSdkVersion") ? rootProject.ext.get("minSdkVersion") : 24
-        targetSdkVersion rootProject.ext.has("targetSdkVersion") ? rootProject.ext.get("targetSdkVersion") : 33
+        minSdkVersion 24
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
         
@@ -47,7 +52,8 @@ android {
         main {
             java.srcDirs = ['src/main/java']
             jniLibs.srcDirs = ['src/main/jniLibs']
-            cpp.srcDirs = ['src/main/cpp']
+            // cpp.srcDirs is no longer supported in AGP 8.2.0+
+            // CMake configuration below handles the C++ sources
         }
     }
     
@@ -76,7 +82,7 @@ dependencies {
     implementation "com.facebook.react:react-native-gradle-plugin"
     implementation "com.facebook.react:hermes-engine"
     
-    // Viro dependencies
-    implementation project(':react_viro')
-    implementation project(':viro_renderer')
+    // Viro dependencies - use AAR files directly instead of project references
+    implementation fileTree(dir: "${rootProject.projectDir}/../android/react_viro", include: ['*.aar'])
+    implementation fileTree(dir: "${rootProject.projectDir}/../android/viro_renderer", include: ['*.aar'])
 }
