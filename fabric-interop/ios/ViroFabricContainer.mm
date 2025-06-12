@@ -826,42 +826,38 @@ facebook::jsi::Value ViroHostObject::get(facebook::jsi::Runtime &runtime, const 
     return nil;
 }
 
-// Helper method to create a JSI array using JavaScript Array constructor
-- (facebook::jsi::Value)createJSIArray:(NSArray *)nsArray runtime:(facebook::jsi::Runtime &)runtime {
-    // Get the Array constructor from the global object
-    auto arrayConstructor = runtime.global().getPropertyAsFunction(runtime, "Array");
+// Helper method to check if an object is JSON serializable
+- (BOOL)isJSONSerializable:(id)obj {
+    if ([obj isKindOfClass:[NSString class]] ||
+        [obj isKindOfClass:[NSNumber class]] ||
+        [obj isKindOfClass:[NSNull class]] ||
+        [obj isKindOfClass:[NSArray class]] ||
+        [obj isKindOfClass:[NSDictionary class]]) {
+        
+        if ([obj isKindOfClass:[NSArray class]]) {
+            for (id item in (NSArray *)obj) {
+                if (![self isJSONSerializable:item]) {
+                    return NO;
+                }
+            }
+        } else if ([obj isKindOfClass:[NSDictionary class]]) {
+            for (id key in [(NSDictionary *)obj allKeys]) {
+                if (![key isKindOfClass:[NSString class]]) {
+                    return NO;
+                }
+                if (![self isJSONSerializable:[(NSDictionary *)obj objectForKey:key]]) {
+                    return NO;
+                }
+            }
+        }
+        
+        return YES;
+    }
     
-    // Create a new array using the constructor
-    auto arrayValue = arrayConstructor.callAsConstructor(runtime, (int)[nsArray count]);
-    auto arrayObj = arrayValue.getObject(runtime);
-    
-    // Populate the array
-    [nsArray enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-        facebook::jsi::Value itemValue = [self convertObjCToJSIValue:obj runtime:runtime];
-        arrayObj.setPropertyAtIndex(runtime, idx, itemValue);
-    }];
-    
-    return arrayValue;
+    return NO;
 }
 
-// Helper method to create a JSI object using JavaScript Object constructor
-- (facebook::jsi::Value)createJSIObject:(NSDictionary *)dict runtime:(facebook::jsi::Runtime &)runtime {
-    // Get the Object constructor from the global object
-    auto objectConstructor = runtime.global().getPropertyAsFunction(runtime, "Object");
-    
-    // Create a new object using the constructor
-    auto objectValue = objectConstructor.callAsConstructor(runtime);
-    auto objectObj = objectValue.getObject(runtime);
-    
-    // Populate the object
-    [dict enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-        facebook::jsi::Value propValue = [self convertObjCToJSIValue:obj runtime:runtime];
-        objectObj.setProperty(runtime, [key UTF8String], propValue);
-    }];
-    
-    return objectValue;
-}
-
+// Convert Objective-C objects to JSI values via JSON
 - (facebook::jsi::Value)convertObjCToJSIValue:(id)value runtime:(facebook::jsi::Runtime &)runtime {
     if (value == nil || [value isKindOfClass:[NSNull class]]) {
         return facebook::jsi::Value::null();
@@ -873,12 +869,36 @@ facebook::jsi::Value ViroHostObject::get(facebook::jsi::Runtime &runtime, const 
         }
     } else if ([value isKindOfClass:[NSString class]]) {
         return facebook::jsi::String::createFromUtf8(runtime, [(NSString *)value UTF8String]);
-    } else if ([value isKindOfClass:[NSArray class]]) {
-        // Use the helper method to create a JSI array
-        return [self createJSIArray:(NSArray *)value runtime:runtime];
-    } else if ([value isKindOfClass:[NSDictionary class]]) {
-        // Use the helper method to create a JSI object
-        return [self createJSIObject:(NSDictionary *)value runtime:runtime];
+    } else if ([value isKindOfClass:[NSArray class]] || [value isKindOfClass:[NSDictionary class]]) {
+        // Check if the object is JSON serializable
+        if (![self isJSONSerializable:value]) {
+            RCTLogError(@"Object is not JSON serializable");
+            return facebook::jsi::Value::undefined();
+        }
+        
+        // Convert to JSON string
+        NSError *error = nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:value options:0 error:&error];
+        if (error) {
+            RCTLogError(@"Error serializing to JSON: %@", error);
+            return facebook::jsi::Value::undefined();
+        }
+        
+        NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        
+        // Create a JavaScript expression to parse the JSON
+        std::string evalString = "JSON.parse('" + std::string([jsonString UTF8String]) + "')";
+        
+        // Evaluate the JavaScript expression to create the object
+        try {
+            return runtime.evaluateJavaScript(
+                std::make_unique<facebook::jsi::StringBuffer>(evalString),
+                "json_parse"
+            );
+        } catch (const std::exception &e) {
+            RCTLogError(@"Error evaluating JSON: %s", e.what());
+            return facebook::jsi::Value::undefined();
+        }
     }
     
     return facebook::jsi::Value::undefined();
