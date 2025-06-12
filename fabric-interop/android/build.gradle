@@ -7,6 +7,17 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// Check if the new architecture is enabled
+def isNewArchitectureEnabled() {
+    return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
+}
+
+// Throw an error if the new architecture is not enabled
+if (!isNewArchitectureEnabled()) {
+    throw new GradleException("Viro Fabric Interop requires the New Architecture to be enabled. " +
+            "Please enable it in your app by setting `newArchEnabled=true` in gradle.properties.")
+}
+
 android {
     compileSdkVersion rootProject.ext.has("compileSdkVersion") ? rootProject.ext.get("compileSdkVersion") : 33
     
@@ -15,6 +26,9 @@ android {
         targetSdkVersion rootProject.ext.has("targetSdkVersion") ? rootProject.ext.get("targetSdkVersion") : 33
         versionCode 1
         versionName "1.0"
+        
+        // Required for React Native 0.76.9+ with New Architecture
+        buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", "true")
     }
     
     buildTypes {
@@ -54,7 +68,15 @@ repositories {
 }
 
 dependencies {
-    implementation "com.facebook.react:react-android:+"
+    // Use a specific version of React Native for stability
+    def reactNativeVersion = rootProject.ext.has("reactNativeVersion") ? rootProject.ext.get("reactNativeVersion") : "0.76.9"
+    implementation "com.facebook.react:react-android:$reactNativeVersion"
+    
+    // Required for React Native 0.76.9+ with New Architecture
+    implementation "com.facebook.react:react-native-gradle-plugin"
+    implementation "com.facebook.react:hermes-engine"
+    
+    // Viro dependencies
     implementation project(':react_viro')
     implementation project(':viro_renderer')
 }

@@ -27,7 +27,35 @@ const isNewArchitectureEnabled = () => {
         "https://reactnative.dev/docs/new-architecture-intro"
     );
   }
+
+  // Check for minimum React Native version (0.76.9)
+  const rnVersion = require("react-native/package.json").version;
+  const minVersion = "0.76.9";
+
+  if (compareVersions(rnVersion, minVersion) < 0) {
+    throw new Error(
+      `Viro: React Native version ${rnVersion} is not supported. ` +
+        `This library requires React Native ${minVersion} or higher.`
+    );
+  }
+
   return true;
+};
+
+// Simple version comparison function
+const compareVersions = (a: string, b: string): number => {
+  const aParts = a.split(".").map(Number);
+  const bParts = b.split(".").map(Number);
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aVal = aParts[i] || 0;
+    const bVal = bParts[i] || 0;
+
+    if (aVal > bVal) return 1;
+    if (aVal < bVal) return -1;
+  }
+
+  return 0;
 };
 
 // Check if the component exists in UIManager
@@ -99,7 +127,7 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
   // Event callback registry
   const eventCallbacks = useRef<Record<string, (event: any) => void>>({});
 
-  // Set up event handling for fallback event emitter approach
+  // Set up event handling for JSI and fallback event emitter approach
   useEffect(() => {
     // Set up global event handler for JSI events
     if (typeof global !== "undefined") {
@@ -109,6 +137,8 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
         const callback = eventCallbacks.current[callbackId];
         if (callback) {
           callback(eventData);
+        } else {
+          console.warn(`No callback found for ID: ${callbackId}`);
         }
       };
     }
@@ -117,16 +147,24 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
     const eventEmitter = new NativeEventEmitter(
       NativeModules.ViroFabricManager
     );
+
+    // Add the ViroEvent listener
     const subscription = eventEmitter.addListener("ViroEvent", (event) => {
       const { callbackId, data } = event;
       const callback = eventCallbacks.current[callbackId];
       if (callback) {
         callback(data);
+      } else {
+        console.warn(
+          `No callback found for ID: ${callbackId} (via event emitter)`
+        );
       }
     });
 
     return () => {
+      // Clean up event subscription
       subscription.remove();
+
       // Clean up global event handler
       if (typeof global !== "undefined") {
         // @ts-ignore - This property was added by us
@@ -139,25 +177,54 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
   useEffect(() => {
     if (containerRef.current && isFabricComponentAvailable()) {
       const nodeHandle = findNodeHandle(containerRef.current);
+      if (!nodeHandle) {
+        console.error("Failed to get node handle for ViroFabricContainer");
+        return;
+      }
 
       try {
-        // Call the native method to initialize
+        // Get the command ID based on platform
+        let commandId;
+
         if (Platform.OS === "ios") {
-          UIManager.dispatchViewManagerCommand(
-            nodeHandle,
-            UIManager.getViewManagerConfig("ViroFabricContainer").Commands
-              .initialize,
-            [apiKey, debug, arEnabled, worldAlignment]
+          const viewConfig = UIManager.getViewManagerConfig(
+            "ViroFabricContainer"
           );
+          if (
+            !viewConfig ||
+            !viewConfig.Commands ||
+            !viewConfig.Commands.initialize
+          ) {
+            console.error(
+              "Initialize command not found in ViroFabricContainer view config"
+            );
+            return;
+          }
+          commandId = viewConfig.Commands.initialize;
         } else {
           // Android
-          UIManager.dispatchViewManagerCommand(
-            nodeHandle,
-            // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
-            UIManager.ViroFabricContainer.Commands.initialize.toString(),
-            [apiKey, debug, arEnabled, worldAlignment]
-          );
+          // Use type assertion to access ViroFabricContainer on UIManager
+          const uiManagerAny = UIManager as any;
+          if (
+            !uiManagerAny.ViroFabricContainer ||
+            !uiManagerAny.ViroFabricContainer.Commands
+          ) {
+            console.error(
+              "ViroFabricContainer commands not found in UIManager"
+            );
+            return;
+          }
+          commandId =
+            uiManagerAny.ViroFabricContainer.Commands.initialize.toString();
         }
+
+        // Call the native method to initialize
+        UIManager.dispatchViewManagerCommand(nodeHandle, commandId, [
+          apiKey || "",
+          debug || false,
+          arEnabled || false,
+          worldAlignment || "Gravity",
+        ]);
       } catch (error) {
         console.error("Failed to initialize ViroFabricContainer:", error);
       }
@@ -165,27 +232,42 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
 
     // Cleanup when unmounting
     return () => {
-      if (containerRef.current && isFabricComponentAvailable()) {
+      if (containerRef.current) {
         const nodeHandle = findNodeHandle(containerRef.current);
+        if (!nodeHandle) return;
 
         try {
-          // Call the native method to cleanup
+          // Get the command ID based on platform
+          let commandId;
+
           if (Platform.OS === "ios") {
-            UIManager.dispatchViewManagerCommand(
-              nodeHandle,
-              UIManager.getViewManagerConfig("ViroFabricContainer").Commands
-                .cleanup,
-              []
+            const viewConfig = UIManager.getViewManagerConfig(
+              "ViroFabricContainer"
             );
+            if (
+              !viewConfig ||
+              !viewConfig.Commands ||
+              !viewConfig.Commands.cleanup
+            ) {
+              return;
+            }
+            commandId = viewConfig.Commands.cleanup;
           } else {
             // Android
-            UIManager.dispatchViewManagerCommand(
-              nodeHandle,
-              // @ts-ignore - This property exists at runtime but TypeScript doesn't know about it
-              UIManager.ViroFabricContainer.Commands.cleanup.toString(),
-              []
-            );
+            // Use type assertion to access ViroFabricContainer on UIManager
+            const uiManagerAny = UIManager as any;
+            if (
+              !uiManagerAny.ViroFabricContainer ||
+              !uiManagerAny.ViroFabricContainer.Commands
+            ) {
+              return;
+            }
+            commandId =
+              uiManagerAny.ViroFabricContainer.Commands.cleanup.toString();
           }
+
+          // Call the native method to cleanup
+          UIManager.dispatchViewManagerCommand(nodeHandle, commandId, []);
         } catch (error) {
           console.error("Failed to cleanup ViroFabricContainer:", error);
         }

@@ -31,52 +31,63 @@ private:
 
     static void initHybrid(
         jni::alias_ref<ViroFabricContainerJSI::javaobject> jThis) {
-        // Get the JSI runtime from the React instance
-        auto reactInstance = jni::make_global(
-            jni::findClassLocal("com/facebook/react/ReactInstanceManager"));
-        auto currentReactContext = reactInstance->getStaticMethod<jobject()>("getCurrentReactContext");
-        auto reactContext = currentReactContext();
+        // Get the current ReactContext
+        auto reactContextClass = jni::findClassLocal("com/facebook/react/bridge/ReactContext");
+        auto reactApplicationContextClass = jni::findClassLocal("com/facebook/react/bridge/ReactApplicationContext");
+        
+        // Get the current instance manager
+        auto reactInstanceManagerClass = jni::findClassLocal("com/facebook/react/ReactInstanceManager");
+        auto getCurrentReactContextMethod = reactInstanceManagerClass->getStaticMethod<jobject()>("getCurrentReactContext");
+        auto reactContext = getCurrentReactContextMethod();
         
         if (reactContext == nullptr) {
+            __android_log_print(ANDROID_LOG_ERROR, "ViroFabricJSI", "React context is null");
             return;
         }
-
-        auto catalystInstance = jni::make_global(
-            jni::findClassLocal("com/facebook/react/bridge/CatalystInstance"));
-        auto getCatalystInstance = catalystInstance->getMethod<jobject()>("getCatalystInstance");
-        auto instance = getCatalystInstance(reactContext);
         
-        if (instance == nullptr) {
-            return;
-        }
-
-        auto jsiModule = jni::make_global(
-            jni::findClassLocal("com/facebook/react/bridge/JSIModule"));
-        auto getJSIModule = jsiModule->getMethod<jobject(jint)>("getJSIModule");
-        auto jsModule = getJSIModule(instance, 0); // JSIModuleType.TurboModuleManager
+        // For React Native 0.76.9+, we need to get the runtime from the RuntimeExecutor
+        auto runtimeExecutorHolderClass = jni::findClassLocal("com/facebook/react/bridge/RuntimeExecutor$RuntimeExecutorHolder");
+        auto getRuntimeExecutorHolderMethod = reactContextClass->getMethod<jobject()>("getRuntimeExecutorHolder");
+        auto runtimeExecutorHolder = getRuntimeExecutorHolderMethod(reactContext);
         
-        if (jsModule == nullptr) {
+        if (runtimeExecutorHolder == nullptr) {
+            __android_log_print(ANDROID_LOG_ERROR, "ViroFabricJSI", "RuntimeExecutorHolder is null");
             return;
         }
-
-        auto jsiRuntime = jni::make_global(
-            jni::findClassLocal("com/facebook/react/bridge/JSIRuntime"));
-        auto getRuntime = jsiRuntime->getMethod<jlong()>("getRuntime");
-        auto runtimePointer = getRuntime(jsModule);
+        
+        // Get the runtime from the RuntimeExecutorHolder
+        auto getRuntimeMethod = runtimeExecutorHolderClass->getMethod<jlong()>("get");
+        auto runtimePointer = getRuntimeMethod(runtimeExecutorHolder);
+        
+        if (runtimePointer == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "ViroFabricJSI", "Runtime pointer is null");
+            return;
+        }
         
         auto runtime = reinterpret_cast<jsi::Runtime*>(runtimePointer);
         
         // Get the JS call invoker
-        auto reactInstanceClass = jni::findClassLocal("com/facebook/react/bridge/ReactContext");
-        auto getJSCallInvokerHolder = reactInstanceClass->getMethod<jobject()>("getJSCallInvokerHolder");
-        auto jsCallInvokerHolder = getJSCallInvokerHolder(reactContext);
+        auto jsCallInvokerHolderClass = jni::findClassLocal("com/facebook/react/turbomodule/core/CallInvokerHolderImpl");
+        auto getJSCallInvokerHolderMethod = reactContextClass->getMethod<jobject()>("getJSCallInvokerHolder");
+        auto jsCallInvokerHolder = getJSCallInvokerHolderMethod(reactContext);
         
-        auto callInvokerHolderClass = jni::findClassLocal("com/facebook/react/turbomodule/core/CallInvokerHolderImpl");
-        auto getCallInvoker = callInvokerHolderClass->getMethod<jlong()>("getCallInvoker");
-        auto callInvokerPointer = getCallInvoker(jsCallInvokerHolder);
+        if (jsCallInvokerHolder == nullptr) {
+            __android_log_print(ANDROID_LOG_ERROR, "ViroFabricJSI", "JSCallInvokerHolder is null");
+            return;
+        }
+        
+        auto getCallInvokerMethod = jsCallInvokerHolderClass->getMethod<jlong()>("getCallInvoker");
+        auto callInvokerPointer = getCallInvokerMethod(jsCallInvokerHolder);
+        
+        if (callInvokerPointer == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "ViroFabricJSI", "CallInvoker pointer is null");
+            return;
+        }
         
         auto callInvoker = reinterpret_cast<facebook::react::CallInvoker*>(callInvokerPointer);
-        auto jsCallInvoker = std::shared_ptr<facebook::react::CallInvoker>(callInvoker);
+        auto jsCallInvoker = std::shared_ptr<facebook::react::CallInvoker>(callInvoker, [](facebook::react::CallInvoker*) {
+            // No-op deleter since we don't own the CallInvoker
+        });
         
         // Create the C++ instance
         auto instance = std::make_shared<ViroFabricContainerJSI>(jThis, runtime, jsCallInvoker);
@@ -295,18 +306,10 @@ private:
                 
                 // Initialize Viro (this is a placeholder - actual initialization happens in the initialize method)
                 
-                // Return a promise that resolves to true
-                auto promiseConstructor = rt.global().getPropertyAsFunction(rt, "Promise");
-                auto promise = promiseConstructor.callAsConstructor(rt, jsi::Function::createFromHostFunction(
-                    rt,
-                    jsi::PropNameID::forAscii(rt, "executor"),
-                    2,  // resolve, reject
-                    [](jsi::Runtime& rt, const jsi::Value& thisValue, const jsi::Value* args, size_t count) -> jsi::Value {
-                        auto resolve = args[0].getObject(rt).getFunction(rt);
-                        resolve.call(rt, jsi::Value(true));
-                        return jsi::Value::undefined();
-                    }
-                ));
+                // Return a promise that resolves to true using Promise.resolve()
+                auto promiseConstructor = rt.global().getPropertyAsObject(rt, "Promise");
+                auto resolveMethod = promiseConstructor.getPropertyAsFunction(rt, "resolve");
+                auto promise = resolveMethod.callWithThis(rt, promiseConstructor, jsi::Value(true));
                 
                 return promise;
             }
@@ -320,7 +323,7 @@ private:
             runtime,
             jsi::PropNameID::forAscii(runtime, "handleViroEvent"),
             2,  // callbackId, event
-            [](jsi::Runtime& rt, const jsi::Value& thisValue, const jsi::Value* args, size_t count) -> jsi::Value {
+            [this](jsi::Runtime& rt, const jsi::Value& thisValue, const jsi::Value* args, size_t count) -> jsi::Value {
                 if (count < 2) {
                     return jsi::Value::undefined();
                 }
@@ -328,25 +331,28 @@ private:
                 auto callbackId = args[0].getString(rt);
                 auto event = args[1];
                 
-                // Find the callback in the global registry
-                auto callbackRegistry = rt.global().getProperty(rt, "eventCallbacks");
-                if (!callbackRegistry.isObject()) {
-                    // Create the callback registry if it doesn't exist
-                    auto newRegistry = jsi::Object(rt);
-                    rt.global().setProperty(rt, "eventCallbacks", newRegistry);
-                    return jsi::Value::undefined();
-                }
-                
-                auto callbackRegistryObj = callbackRegistry.getObject(rt);
-                auto callback = callbackRegistryObj.getProperty(rt, callbackId.utf8(rt).c_str());
-                
-                if (!callback.isObject() || !callback.getObject(rt).isFunction(rt)) {
-                    return jsi::Value::undefined();
-                }
-                
-                // Call the callback with the event
-                auto callbackFunc = callback.getObject(rt).getFunction(rt);
-                callbackFunc.call(rt, event);
+                // Use the jsCallInvoker to ensure we're on the JS thread
+                jsCallInvoker_->invokeAsync([callbackIdCopy = std::string(callbackId.utf8(rt)), &rt, event]() {
+                    // Find the callback in the global registry
+                    auto callbackRegistry = rt.global().getProperty(rt, "eventCallbacks");
+                    if (!callbackRegistry.isObject()) {
+                        // Create the callback registry if it doesn't exist
+                        auto newRegistry = jsi::Object(rt);
+                        rt.global().setProperty(rt, "eventCallbacks", newRegistry);
+                        return;
+                    }
+                    
+                    auto callbackRegistryObj = callbackRegistry.getObject(rt);
+                    auto callback = callbackRegistryObj.getProperty(rt, callbackIdCopy.c_str());
+                    
+                    if (!callback.isObject() || !callback.getObject(rt).isFunction(rt)) {
+                        return;
+                    }
+                    
+                    // Call the callback with the event
+                    auto callbackFunc = callback.getObject(rt).getFunction(rt);
+                    callbackFunc.call(rt, event);
+                });
                 
                 return jsi::Value::undefined();
             }

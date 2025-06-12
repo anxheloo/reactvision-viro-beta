@@ -8,6 +8,7 @@
 
 #import "ViroFabricManager.h"
 #import <React/RCTLog.h>
+#import <React/RCTBridge+Private.h>
 
 @interface ViroFabricManager ()
 @property (nonatomic, strong) NSMutableArray<NSString *> *supportedEvents;
@@ -37,7 +38,8 @@ RCT_EXPORT_MODULE();
 }
 
 - (void)setBridge:(RCTBridge *)bridge {
-    _bridge = bridge;
+    [super setBridge:bridge];
+    //_bridge = bridge;
 }
 
 + (BOOL)requiresMainQueueSetup {
@@ -52,7 +54,15 @@ RCT_EXPORT_MODULE();
 // Method to emit events to JavaScript
 - (void)sendEventWithName:(NSString *)name body:(NSDictionary *)body {
     if (self.bridge) {
-        [super sendEventWithName:name body:body];
+        // Check if we're on the main thread
+        if ([NSThread isMainThread]) {
+            [super sendEventWithName:name body:body];
+        } else {
+            // Dispatch to main thread if we're not already on it
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [super sendEventWithName:name body:body];
+            });
+        }
     } else {
         RCTLogWarn(@"Cannot send event: bridge is not available");
     }

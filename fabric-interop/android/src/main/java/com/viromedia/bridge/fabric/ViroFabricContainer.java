@@ -1,6 +1,7 @@
 package com.viromedia.bridge.fabric;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -8,10 +9,12 @@ import com.facebook.jni.HybridData;
 import com.facebook.jni.annotations.DoNotStrip;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.bridge.RuntimeExecutor;
 
 import com.viromedia.bridge.component.VRTSceneNavigator;
 import com.viromedia.bridge.component.VRTARSceneNavigator;
@@ -48,6 +51,9 @@ public class ViroFabricContainer extends FrameLayout {
     // JSI bridge
     @DoNotStrip
     private HybridData mHybridData;
+    
+    // Tag for logging
+    private static final String TAG = "ViroFabricContainer";
 
     public ViroFabricContainer(ThemedReactContext context) {
         super(context);
@@ -58,8 +64,35 @@ public class ViroFabricContainer extends FrameLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Initialize JSI bridge
-        initHybrid();
+        // Check if we're running with the New Architecture
+        if (!isNewArchitectureEnabled()) {
+            throw new RuntimeException("ViroFabricContainer requires the New Architecture to be enabled");
+        }
+
+        // Initialize JSI bridge on the UI thread
+        UiThreadUtil.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    initHybrid();
+                    Log.d(TAG, "JSI bridge initialized successfully");
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to initialize JSI bridge", e);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Check if the New Architecture is enabled.
+     */
+    private boolean isNewArchitectureEnabled() {
+        try {
+            Class.forName("com.facebook.react.bridge.RuntimeExecutor");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     @Override
@@ -158,10 +191,23 @@ public class ViroFabricContainer extends FrameLayout {
      * Send an event to JavaScript.
      */
     private void sendEvent(String eventName, WritableMap params) {
-        mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
-                getId(),
-                eventName,
-                params);
+        // Ensure we're on the UI thread
+        if (UiThreadUtil.isOnUiThread()) {
+            mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
+                    getId(),
+                    eventName,
+                    params);
+        } else {
+            UiThreadUtil.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
+                            getId(),
+                            eventName,
+                            params);
+                }
+            });
+        }
     }
 
     /**
@@ -436,11 +482,30 @@ public class ViroFabricContainer extends FrameLayout {
     private void dispatchEventToJSImpl(String callbackId, ReadableMap data) {
         // Get the JSI runtime
         if (mHybridData == null) {
-            System.err.println("Cannot dispatch event to JS: hybrid data is null");
+            Log.e(TAG, "Cannot dispatch event to JS: hybrid data is null");
             return;
         }
         
-        // Call the native method
-        dispatchEventToJS(callbackId, data);
+        try {
+            // Call the native method
+            dispatchEventToJS(callbackId, data);
+        } catch (Exception e) {
+            Log.e(TAG, "Error dispatching event to JS: " + e.getMessage(), e);
+            
+            // Fallback to RCTEventEmitter
+            WritableMap event = new WritableNativeMap();
+            event.putString("callbackId", callbackId);
+            event.putMap("data", data);
+            sendEvent("ViroEvent", event);
+        }
+    }
+    
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        if (mHybridData != null) {
+            mHybridData.resetNative();
+            mHybridData = null;
+        }
     }
 }

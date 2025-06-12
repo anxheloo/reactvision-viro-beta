@@ -14,6 +14,7 @@
 #import <React/RCTBridge+Private.h>
 #import <ReactCommon/RCTTurboModule.h>
 #import <ReactCommon/RCTTurboModuleManager.h>
+#import <ReactCommon/RuntimeExecutor.h>
 #import <jsi/jsi.h>
 
 // Import existing Viro headers
@@ -27,9 +28,6 @@ using namespace facebook::jsi;
     VRTSceneNavigator *_sceneNavigator;
     VRTARSceneNavigator *_arSceneNavigator;
     
-    // JSI runtime
-    std::shared_ptr<facebook::jsi::Runtime> _runtime;
-    
     // Node registry
     NSMutableDictionary<NSString *, id> *_nodeRegistry;
     
@@ -41,16 +39,30 @@ using namespace facebook::jsi;
     
     // Bridge reference
     __weak RCTBridge *_bridge;
+    
+    // Runtime executor for JSI
+    facebook::react::RuntimeExecutor _runtimeExecutor;
 }
 
 @end
 
-@implementation ViroFabricContainer
-
 // Forward declaration of the runtime bridge class
 @interface ViroRuntimeBridge : NSObject
-+ (void)installIntoRuntime:(std::shared_ptr<facebook::jsi::Runtime> *)runtime withContainer:(ViroFabricContainer *)container;
++ (void)installIntoRuntime:(facebook::jsi::Runtime &)runtime withContainer:(ViroFabricContainer *)container;
 @end
+
+// Forward declaration of the host object class
+class ViroHostObject : public facebook::jsi::HostObject {
+private:
+    __weak ViroFabricContainer *_container;
+    
+public:
+    ViroHostObject(ViroFabricContainer *container) : _container(container) {}
+    
+    facebook::jsi::Value get(facebook::jsi::Runtime &runtime, const facebook::jsi::PropNameID &name) override;
+};
+
+@implementation ViroFabricContainer
 
 - (instancetype)initWithBridge:(RCTBridge *)bridge {
     if (self = [super init]) {
@@ -75,41 +87,30 @@ using namespace facebook::jsi;
         return;
     }
     
-    // Try multiple approaches to get the JSI runtime
-    
-    // Approach 1: Try to get the runtime through TurboModuleManager
-    id<RCTTurboModule> turboModuleManager = [bridge moduleForName:@"RCTTurboModuleManager" lazilyLoadIfNecessary:YES];
-    if (turboModuleManager && [turboModuleManager respondsToSelector:NSSelectorFromString(@"runtime")]) {
-        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[turboModuleManager performSelector:NSSelectorFromString(@"runtime")];
-        if (_runtime) {
-            RCTLogInfo(@"Got runtime through TurboModuleManager");
-            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
-            return;
-        }
+    // Get the CxxBridge for React Native 0.76.9+
+    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)bridge;
+    if (!cxxBridge || ![cxxBridge isKindOfClass:[RCTCxxBridge class]]) {
+        RCTLog(@"[warning] Could not get RCTCxxBridge. Some functionality may be limited.");
+        return;
     }
     
-    // Approach 2: Try to get the runtime through RCTCxxBridge
-    if ([bridge respondsToSelector:NSSelectorFromString(@"runtime")]) {
-        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[bridge performSelector:NSSelectorFromString(@"runtime")];
-        if (_runtime) {
-            RCTLogInfo(@"Got runtime through bridge runtime method");
-            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
-            return;
-        }
-    }
+    // Get the runtime executor
+    _runtimeExecutor = cxxBridge.runtime;
     
-    // Approach 3: Try to get the runtime through RCTBridge+Private.h
-    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)[RCTBridge currentBridge];
-    if (cxxBridge && [cxxBridge respondsToSelector:NSSelectorFromString(@"runtime")]) {
-        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[cxxBridge performSelector:NSSelectorFromString(@"runtime")];
-        if (_runtime) {
-            RCTLogInfo(@"Got runtime through RCTCxxBridge");
-            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
-            return;
-        }
+    if (_runtimeExecutor) {
+        RCTLogInfo(@"Got runtime executor from RCTCxxBridge");
+        
+        // Use the runtime executor to install JSI bindings
+        __weak ViroFabricContainer *weakSelf = self;
+        _runtimeExecutor([weakSelf](facebook::jsi::Runtime& runtime) {
+            __strong ViroFabricContainer *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            
+            [ViroRuntimeBridge installIntoRuntime:runtime withContainer:strongSelf];
+        });
+    } else {
+        RCTLog(@"[warning] Could not get JSI runtime executor. Some functionality may be limited.");
     }
-    
-    RCTLogWarning(@"Could not get JSI runtime. Some functionality may be limited.");
 }
 
 - (void)layoutSubviews {
@@ -185,192 +186,234 @@ using namespace facebook::jsi;
     RCTLogInfo(@"JSI bindings installation is now handled by ViroRuntimeBridge");
 }
 
+@end
+
 // Implementation of the runtime bridge
 @implementation ViroRuntimeBridge
 
-+ (void)installIntoRuntime:(std::shared_ptr<facebook::jsi::Runtime> *)runtimePtr withContainer:(ViroFabricContainer *)container {
-    if (!runtimePtr || !(*runtimePtr)) {
-        RCTLogError(@"JSI Runtime not available");
++ (void)installIntoRuntime:(facebook::jsi::Runtime &)runtime withContainer:(ViroFabricContainer *)container {
+    if (!container) {
+        RCTLogError(@"Container not available for JSI installation");
         return;
     }
     
-    // Get a reference to the runtime
-    facebook::jsi::Runtime &runtime = *(*runtimePtr);
-    
-    // Create the NativeViro object
-    auto nativeViro = facebook::jsi::Object(runtime);
-    
-    // Node management functions
-    nativeViro.setProperty(runtime, "createViroNode", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "createViroNode"),
-        3,  // nodeId, nodeType, props
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 3) {
-                throw JSError(rt, "createViroNode requires 3 arguments");
-            }
-            
-            NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            NSString *nodeType = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
-            
-            // Convert props from JSI to NSDictionary
-            id props = [container convertJSIValueToObjC:args[2] runtime:rt];
-            
-            // Create the node based on type
-            [container createNode:nodeId ofType:nodeType withProps:props];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    nativeViro.setProperty(runtime, "updateViroNode", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "updateViroNode"),
-        2,  // nodeId, props
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 2) {
-                throw JSError(rt, "updateViroNode requires 2 arguments");
-            }
-            
-            NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            
-            // Convert props from JSI to NSDictionary
-            id props = [container convertJSIValueToObjC:args[1] runtime:rt];
-            
-            // Update the node
-            [container updateNode:nodeId withProps:props];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    nativeViro.setProperty(runtime, "deleteViroNode", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "deleteViroNode"),
-        1,  // nodeId
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 1) {
-                throw JSError(rt, "deleteViroNode requires 1 argument");
-            }
-            
-            NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            
-            // Delete the node
-            [container deleteNode:nodeId];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    // Scene hierarchy functions
-    nativeViro.setProperty(runtime, "addViroNodeChild", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "addViroNodeChild"),
-        2,  // parentId, childId
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 2) {
-                throw JSError(rt, "addViroNodeChild requires 2 arguments");
-            }
-            
-            NSString *parentId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
-            
-            // Add child to parent
-            [container addChild:childId toParent:parentId];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    nativeViro.setProperty(runtime, "removeViroNodeChild", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "removeViroNodeChild"),
-        2,  // parentId, childId
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 2) {
-                throw JSError(rt, "removeViroNodeChild requires 2 arguments");
-            }
-            
-            NSString *parentId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
-            
-            // Remove child from parent
-            [container removeChild:childId fromParent:parentId];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    // Event handling functions
-    nativeViro.setProperty(runtime, "registerEventCallback", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "registerEventCallback"),
-        3,  // nodeId, eventName, callbackId
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 3) {
-                throw JSError(rt, "registerEventCallback requires 3 arguments");
-            }
-            
-            NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            NSString *eventName = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
-            NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
-            
-            // Register event callback
-            [container registerEventCallback:callbackId forEvent:eventName onNode:nodeId];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    nativeViro.setProperty(runtime, "unregisterEventCallback", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "unregisterEventCallback"),
-        3,  // nodeId, eventName, callbackId
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 3) {
-                throw JSError(rt, "unregisterEventCallback requires 3 arguments");
-            }
-            
-            NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            NSString *eventName = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
-            NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
-            
-            // Unregister event callback
-            [container unregisterEventCallback:callbackId forEvent:eventName onNode:nodeId];
-            
-            return Value::undefined();
-        }
-    ));
-    
-    // Initialize function
-    nativeViro.setProperty(runtime, "initialize", Function::createFromHostFunction(
-        runtime,
-        PropNameID::forAscii(runtime, "initialize"),
-        1,  // apiKey
-        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-            if (count < 1) {
-                throw JSError(rt, "initialize requires 1 argument");
-            }
-            
-            NSString *apiKey = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
-            
-            // Initialize Viro (this is a placeholder - actual initialization happens in the initialize: method)
-            
-            // Return a promise that resolves to true
-            auto promise = Promise::createFromHostFunction(
-                rt,
-                [](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
-                    return Value(true);
-                }
-            );
-            
-            return promise;
-        }
-    ));
+    // Create a host object for better memory management and organization
+    auto hostObject = std::make_shared<ViroHostObject>(container);
+    auto nativeViro = facebook::jsi::Object::createFromHostObject(runtime, std::move(hostObject));
     
     // Attach the NativeViro object to the global object
     runtime.global().setProperty(runtime, "NativeViro", std::move(nativeViro));
 }
+
+@end
+
+// Implementation of ViroHostObject
+facebook::jsi::Value ViroHostObject::get(facebook::jsi::Runtime &runtime, const facebook::jsi::PropNameID &name) {
+    auto nameStr = name.utf8(runtime);
+    
+    // Node management functions
+    if (nameStr == "createViroNode") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            3,  // nodeId, nodeType, props
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 3) {
+                    throw facebook::jsi::JSError(rt, "createViroNode requires 3 arguments");
+                }
+                
+                NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                NSString *nodeType = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
+                
+                // Convert props from JSI to NSDictionary
+                id props = [container convertJSIValueToObjC:args[2] runtime:rt];
+                
+                // Create the node based on type
+                [container createNode:nodeId ofType:nodeType withProps:props];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    else if (nameStr == "updateViroNode") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            2,  // nodeId, props
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 2) {
+                    throw facebook::jsi::JSError(rt, "updateViroNode requires 2 arguments");
+                }
+                
+                NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                
+                // Convert props from JSI to NSDictionary
+                id props = [container convertJSIValueToObjC:args[1] runtime:rt];
+                
+                // Update the node
+                [container updateNode:nodeId withProps:props];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    else if (nameStr == "deleteViroNode") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            1,  // nodeId
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 1) {
+                    throw facebook::jsi::JSError(rt, "deleteViroNode requires 1 argument");
+                }
+                
+                NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                
+                // Delete the node
+                [container deleteNode:nodeId];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    // Scene hierarchy functions
+    else if (nameStr == "addViroNodeChild") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            2,  // parentId, childId
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 2) {
+                    throw facebook::jsi::JSError(rt, "addViroNodeChild requires 2 arguments");
+                }
+                
+                NSString *parentId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
+                
+                // Add child to parent
+                [container addChild:childId toParent:parentId];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    else if (nameStr == "removeViroNodeChild") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            2,  // parentId, childId
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 2) {
+                    throw facebook::jsi::JSError(rt, "removeViroNodeChild requires 2 arguments");
+                }
+                
+                NSString *parentId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
+                
+                // Remove child from parent
+                [container removeChild:childId fromParent:parentId];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    // Event handling functions
+    else if (nameStr == "registerEventCallback") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            3,  // nodeId, eventName, callbackId
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 3) {
+                    throw facebook::jsi::JSError(rt, "registerEventCallback requires 3 arguments");
+                }
+                
+                NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                NSString *eventName = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
+                NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
+                
+                // Register event callback
+                [container registerEventCallback:callbackId forEvent:eventName onNode:nodeId];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    else if (nameStr == "unregisterEventCallback") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            3,  // nodeId, eventName, callbackId
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 3) {
+                    throw facebook::jsi::JSError(rt, "unregisterEventCallback requires 3 arguments");
+                }
+                
+                NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                NSString *eventName = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
+                NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
+                
+                // Unregister event callback
+                [container unregisterEventCallback:callbackId forEvent:eventName onNode:nodeId];
+                
+                return facebook::jsi::Value::undefined();
+            }
+        );
+    }
+    // Initialize function
+    else if (nameStr == "initialize") {
+        return facebook::jsi::Function::createFromHostFunction(
+            runtime,
+            name,
+            1,  // apiKey
+            [weakContainer = _container](facebook::jsi::Runtime& rt, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* args, size_t count) -> facebook::jsi::Value {
+                __strong ViroFabricContainer *container = weakContainer;
+                if (!container) return facebook::jsi::Value::undefined();
+                
+                if (count < 1) {
+                    throw facebook::jsi::JSError(rt, "initialize requires 1 argument");
+                }
+                
+                NSString *apiKey = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
+                
+                // Initialize Viro (this is a placeholder - actual initialization happens in the initialize: method)
+                
+                // Return a promise that resolves to true using Promise.resolve()
+                auto promiseConstructor = rt.global().getPropertyAsObject(rt, "Promise");
+                auto resolveMethod = promiseConstructor.getPropertyAsFunction(rt, "resolve");
+                auto promise = resolveMethod.callWithThis(rt, promiseConstructor, facebook::jsi::Value(true));
+                
+                return promise;
+            }
+        );
+    }
+    
+    return facebook::jsi::Value::undefined();
+}
+
+// Continue with ViroFabricContainer implementation
+@implementation ViroFabricContainer (NodeManagement)
 
 #pragma mark - Node Management
 
@@ -389,19 +432,54 @@ using namespace facebook::jsi;
     if ([nodeType isEqualToString:@"scene"]) {
         // For scene nodes, we need to create a VRTScene and set it on the navigator
         if (_sceneNavigator) {
+            // Import the VRTScene class from the ViroReact framework
+            Class sceneClass = NSClassFromString(@"VRTScene");
+            if (!sceneClass) {
+                RCTLogError(@"VRTScene class not found");
+                return;
+            }
+            
             // Create a scene using the existing VRTScene implementation
-            VRTScene *scene = [[VRTScene alloc] initWithBridge:_bridge];
-            [scene setProps:props];
-            [_sceneNavigator setScene:scene];
+            id scene = [[sceneClass alloc] initWithBridge:_bridge];
+            
+            // Instead of using setProps:, set properties individually or use a different method
+            // Check if the scene responds to specific property setters
+            if ([scene respondsToSelector:@selector(setProperties:)]) {
+                [scene performSelector:@selector(setProperties:) withObject:props];
+            }
+            
+            // Use setScene: instead of setSceneView:
+            if ([_sceneNavigator respondsToSelector:@selector(setScene:)]) {
+                [_sceneNavigator performSelector:@selector(setScene:) withObject:scene];
+            } else if ([_sceneNavigator respondsToSelector:@selector(setCurrentScene:)]) {
+                [_sceneNavigator performSelector:@selector(setCurrentScene:) withObject:scene];
+            }
+            
             _nodeRegistry[nodeId] = scene;
         }
     } else if ([nodeType isEqualToString:@"arScene"]) {
         // For AR scene nodes, we need to create a VRTARScene and set it on the navigator
         if (_arSceneNavigator) {
+            // Import the VRTARScene class from the ViroReact framework
+            Class arSceneClass = NSClassFromString(@"VRTARScene");
+            if (!arSceneClass) {
+                RCTLogError(@"VRTARScene class not found");
+                return;
+            }
+            
             // Create an AR scene using the existing VRTARScene implementation
-            VRTARScene *arScene = [[VRTARScene alloc] initWithBridge:_bridge];
-            [arScene setProps:props];
-            [_arSceneNavigator setScene:arScene];
+            id arScene = [[arSceneClass alloc] initWithBridge:_bridge];
+            
+            // Instead of using setProps:, set properties individually or use a different method
+            if ([arScene respondsToSelector:@selector(setProperties:)]) {
+                [arScene performSelector:@selector(setProperties:) withObject:props];
+            }
+            
+            // Use setScene: method
+            if ([_arSceneNavigator respondsToSelector:@selector(setScene:)]) {
+                [_arSceneNavigator performSelector:@selector(setScene:) withObject:arScene];
+            }
+            
             _nodeRegistry[nodeId] = arScene;
         }
     } else {
@@ -409,8 +487,19 @@ using namespace facebook::jsi;
         // This would delegate to the existing VRT node creation logic
         // For example, for a box:
         if ([nodeType isEqualToString:@"box"]) {
-            VRTBox *box = [[VRTBox alloc] initWithBridge:_bridge];
-            [box setProps:props];
+            Class boxClass = NSClassFromString(@"VRTBox");
+            if (!boxClass) {
+                RCTLogError(@"VRTBox class not found");
+                return;
+            }
+            
+            id box = [[boxClass alloc] initWithBridge:_bridge];
+            
+            // Instead of using setProps:, set properties individually or use a different method
+            if ([box respondsToSelector:@selector(setProperties:)]) {
+                [box performSelector:@selector(setProperties:) withObject:props];
+            }
+            
             _nodeRegistry[nodeId] = box;
         }
         // Similar implementations for other node types
@@ -425,9 +514,13 @@ using namespace facebook::jsi;
         return;
     }
     
-    // If the node is a VRT node, update its properties
-    if ([node isKindOfClass:[VRTNode class]]) {
-        [(VRTNode *)node setProps:props];
+    // If the node is a VRTNode, update its properties
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [node isKindOfClass:vrtNodeClass]) {
+        // Instead of using setProps:, set properties individually or use a different method
+        if ([node respondsToSelector:@selector(setProperties:)]) {
+            [node performSelector:@selector(setProperties:) withObject:props];
+        }
     } else {
         // If it's just a dictionary (for nodes we don't have a VRT class for yet),
         // update the props in the registry
@@ -447,10 +540,15 @@ using namespace facebook::jsi;
         return;
     }
     
-    // If the node is a VRT node, remove it from its parent
-    if ([node isKindOfClass:[VRTNode class]]) {
-        VRTNode *vrtNode = (VRTNode *)node;
-        [vrtNode removeFromParent];
+    // If the node is a VRTNode, remove it from its parent
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [node isKindOfClass:vrtNodeClass]) {
+        // Check for the correct method to remove from parent
+        if ([node respondsToSelector:@selector(removeFromParentNode)]) {
+            [node performSelector:@selector(removeFromParentNode)];
+        } else if ([node respondsToSelector:@selector(removeFromParent)]) {
+            [node performSelector:@selector(removeFromParent)];
+        }
     }
     
     // Remove the node from the registry
@@ -467,11 +565,40 @@ using namespace facebook::jsi;
         return;
     }
     
-    // If both parent and child are VRT nodes, add the child to the parent
-    if ([parent isKindOfClass:[VRTNode class]] && [child isKindOfClass:[VRTNode class]]) {
-        VRTNode *parentNode = (VRTNode *)parent;
-        VRTNode *childNode = (VRTNode *)child;
-        [parentNode addChildNode:childNode];
+    // If both parent and child are VRTNode, add the child to the parent
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [parent isKindOfClass:vrtNodeClass] && [child isKindOfClass:vrtNodeClass]) {
+        // Try to use a direct method on VRTNode if available
+        if ([parent respondsToSelector:@selector(addChildNode:)]) {
+            [parent performSelector:@selector(addChildNode:) withObject:child];
+        } else {
+            // Fallback to using the VRONode directly
+            // Get the node property from the parent and child using proper type handling
+            std::shared_ptr<VRONode> parentVRONode = nullptr;
+            std::shared_ptr<VRONode> childVRONode = nullptr;
+            
+            if ([parent respondsToSelector:@selector(node)]) {
+                NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:
+                                           [parent methodSignatureForSelector:@selector(node)]];
+                [invocation setSelector:@selector(node)];
+                [invocation setTarget:parent];
+                [invocation invoke];
+                [invocation getReturnValue:&parentVRONode];
+            }
+            
+            if ([child respondsToSelector:@selector(node)]) {
+                NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:
+                                           [child methodSignatureForSelector:@selector(node)]];
+                [invocation setSelector:@selector(node)];
+                [invocation setTarget:child];
+                [invocation invoke];
+                [invocation getReturnValue:&childVRONode];
+            }
+            
+            if (parentVRONode && childVRONode) {
+                parentVRONode->addChildNode(childVRONode);
+            }
+        }
     } else {
         // If they're not both VRT nodes, update the parent-child relationship in the registry
         NSMutableDictionary *parentInfo = [parent isKindOfClass:[NSDictionary class]] ? [parent mutableCopy] : [NSMutableDictionary new];
@@ -492,10 +619,32 @@ using namespace facebook::jsi;
         return;
     }
     
-    // If both parent and child are VRT nodes, remove the child from the parent
-    if ([parent isKindOfClass:[VRTNode class]] && [child isKindOfClass:[VRTNode class]]) {
-        VRTNode *childNode = (VRTNode *)child;
-        [childNode removeFromParent];
+    // If both parent and child are VRTNode, remove the child from the parent
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [parent isKindOfClass:vrtNodeClass] && [child isKindOfClass:vrtNodeClass]) {
+        // Try to use a direct method on VRTNode if available
+        if ([parent respondsToSelector:@selector(removeChildNode:)]) {
+            [parent performSelector:@selector(removeChildNode:) withObject:child];
+        } else if ([child respondsToSelector:@selector(removeFromParent)]) {
+            [child performSelector:@selector(removeFromParent)];
+        } else {
+            // Fallback to using the VRONode directly
+            // Get the node property from the child using proper type handling
+            std::shared_ptr<VRONode> childVRONode = nullptr;
+            
+            if ([child respondsToSelector:@selector(node)]) {
+                NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:
+                                           [child methodSignatureForSelector:@selector(node)]];
+                [invocation setSelector:@selector(node)];
+                [invocation setTarget:child];
+                [invocation invoke];
+                [invocation getReturnValue:&childVRONode];
+            }
+            
+            if (childVRONode) {
+                childVRONode->removeFromParentNode();
+            }
+        }
     } else {
         // If they're not both VRT nodes, update the parent-child relationship in the registry
         NSMutableDictionary *parentInfo = [parent isKindOfClass:[NSDictionary class]] ? [parent mutableCopy] : [NSMutableDictionary new];
@@ -507,7 +656,7 @@ using namespace facebook::jsi;
 }
 
 // Helper method to get the active navigator
-- (VRTSceneNavigator *)getActiveNavigator {
+- (id)getActiveNavigator {
     if (_arSceneNavigator) {
         return _arSceneNavigator;
     } else {
@@ -530,17 +679,29 @@ using namespace facebook::jsi;
     _eventCallbackRegistry[key] = callbackId;
     
     // If the node is a VRT node, register the event callback
-    if ([node isKindOfClass:[VRTNode class]]) {
-        VRTNode *vrtNode = (VRTNode *)node;
-        
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [node isKindOfClass:vrtNodeClass]) {
         // Create a block that will dispatch the event to JS
         __weak ViroFabricContainer *weakSelf = self;
-        VRTEventCallback callback = ^(NSDictionary *event) {
+        id eventCallback = ^(NSDictionary *event) {
             [weakSelf dispatchEventToJS:callbackId withData:event];
         };
         
-        // Register the event callback with the node
-        [vrtNode registerEventCallback:callback withName:eventName];
+        // Try different methods for registering event callbacks
+        SEL registerSelector = NSSelectorFromString(@"registerEventCallback:withName:");
+        if ([node respondsToSelector:registerSelector]) {
+            NSMethodSignature *signature = [node methodSignatureForSelector:registerSelector];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+            [invocation setSelector:registerSelector];
+            [invocation setTarget:node];
+            [invocation setArgument:&eventCallback atIndex:2];
+            [invocation setArgument:&eventName atIndex:3];
+            [invocation invoke];
+        } else if ([node respondsToSelector:@selector(addEventListener:withBlock:)]) {
+            [node performSelector:@selector(addEventListener:withBlock:) 
+                      withObject:eventName 
+                      withObject:eventCallback];
+        }
     }
 }
 
@@ -557,34 +718,52 @@ using namespace facebook::jsi;
     [_eventCallbackRegistry removeObjectForKey:key];
     
     // If the node is a VRT node, unregister the event callback
-    if ([node isKindOfClass:[VRTNode class]]) {
-        VRTNode *vrtNode = (VRTNode *)node;
-        
-        // Unregister the event callback from the node
-        [vrtNode unregisterEventCallback:eventName];
+    Class vrtNodeClass = NSClassFromString(@"VRTNode");
+    if (vrtNodeClass && [node isKindOfClass:vrtNodeClass]) {
+        // Try different methods for unregistering event callbacks
+        SEL unregisterSelector = NSSelectorFromString(@"unregisterEventCallback:");
+        if ([node respondsToSelector:unregisterSelector]) {
+            [node performSelector:unregisterSelector withObject:eventName];
+        } else if ([node respondsToSelector:@selector(removeEventListener:)]) {
+            [node performSelector:@selector(removeEventListener:) withObject:eventName];
+        }
     }
 }
 
 - (void)dispatchEventToJS:(NSString *)callbackId withData:(NSDictionary *)data {
-    // Dispatch the event to JS through the bridge
-    if (_runtime) {
-        auto &runtime = *_runtime;
+    // Dispatch the event to JS through the runtime executor
+    if (_runtimeExecutor) {
+        // Capture data safely
+        NSString *callbackIdCopy = [callbackId copy];
+        NSDictionary *dataCopy = [data copy];
+        __weak ViroFabricContainer *weakSelf = self;
         
-        try {
-            auto global = runtime.global();
-            if (global.hasProperty(runtime, "handleViroEvent")) {
-                auto handleViroEvent = global.getPropertyAsFunction(runtime, "handleViroEvent");
-                auto jsData = [self convertObjCToJSIValue:data runtime:runtime];
-                handleViroEvent.call(runtime, facebook::jsi::String::createFromUtf8(runtime, [callbackId UTF8String]), jsData);
-            } else {
-                RCTLogError(@"handleViroEvent function not found in global object");
+        _runtimeExecutor([callbackIdCopy, dataCopy, weakSelf](facebook::jsi::Runtime& runtime) {
+            __strong ViroFabricContainer *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            
+            try {
+                auto global = runtime.global();
+                if (global.hasProperty(runtime, "handleViroEvent")) {
+                    auto handleViroEvent = global.getPropertyAsFunction(runtime, "handleViroEvent");
+                    // Create the JSI string directly without copying
+                    facebook::jsi::String jsCallbackId = facebook::jsi::String::createFromUtf8(runtime, [callbackIdCopy UTF8String]);
+                    
+                    // Convert data to JSI value and use it directly
+                    facebook::jsi::Value jsDataValue = [strongSelf convertObjCToJSIValue:dataCopy runtime:runtime];
+                    
+                    // Call the function with the values (without std::move)
+                    handleViroEvent.call(runtime, jsCallbackId, jsDataValue);
+                } else {
+                    RCTLogError(@"handleViroEvent function not found in global object");
+                }
+            } catch (const std::exception &e) {
+                RCTLogError(@"Error dispatching event to JS: %s", e.what());
             }
-        } catch (const std::exception &e) {
-            RCTLogError(@"Error dispatching event to JS: %s", e.what());
-        }
+        });
     } else if (_bridge) {
         // Fallback to RCTEventEmitter approach
-        RCTLogInfo(@"JSI runtime not available, using event emitter fallback for callback %@: %@", callbackId, data);
+        RCTLogInfo(@"JSI runtime executor not available, using event emitter fallback for callback %@", callbackId);
         
         // Send event through the ViroFabricManager
         [[ViroFabricManager sharedInstance] sendEventWithName:@"ViroEvent"
@@ -596,6 +775,8 @@ using namespace facebook::jsi;
 }
 
 @end
+
+@implementation ViroFabricContainer (Utilities)
 
 #pragma mark - Utility Methods
 
@@ -645,6 +826,42 @@ using namespace facebook::jsi;
     return nil;
 }
 
+// Helper method to create a JSI array using JavaScript Array constructor
+- (facebook::jsi::Value)createJSIArray:(NSArray *)nsArray runtime:(facebook::jsi::Runtime &)runtime {
+    // Get the Array constructor from the global object
+    auto arrayConstructor = runtime.global().getPropertyAsFunction(runtime, "Array");
+    
+    // Create a new array using the constructor
+    auto arrayValue = arrayConstructor.callAsConstructor(runtime, (int)[nsArray count]);
+    auto arrayObj = arrayValue.getObject(runtime);
+    
+    // Populate the array
+    [nsArray enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        facebook::jsi::Value itemValue = [self convertObjCToJSIValue:obj runtime:runtime];
+        arrayObj.setPropertyAtIndex(runtime, idx, itemValue);
+    }];
+    
+    return arrayValue;
+}
+
+// Helper method to create a JSI object using JavaScript Object constructor
+- (facebook::jsi::Value)createJSIObject:(NSDictionary *)dict runtime:(facebook::jsi::Runtime &)runtime {
+    // Get the Object constructor from the global object
+    auto objectConstructor = runtime.global().getPropertyAsFunction(runtime, "Object");
+    
+    // Create a new object using the constructor
+    auto objectValue = objectConstructor.callAsConstructor(runtime);
+    auto objectObj = objectValue.getObject(runtime);
+    
+    // Populate the object
+    [dict enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+        facebook::jsi::Value propValue = [self convertObjCToJSIValue:obj runtime:runtime];
+        objectObj.setProperty(runtime, [key UTF8String], propValue);
+    }];
+    
+    return objectValue;
+}
+
 - (facebook::jsi::Value)convertObjCToJSIValue:(id)value runtime:(facebook::jsi::Runtime &)runtime {
     if (value == nil || [value isKindOfClass:[NSNull class]]) {
         return facebook::jsi::Value::null();
@@ -657,21 +874,11 @@ using namespace facebook::jsi;
     } else if ([value isKindOfClass:[NSString class]]) {
         return facebook::jsi::String::createFromUtf8(runtime, [(NSString *)value UTF8String]);
     } else if ([value isKindOfClass:[NSArray class]]) {
-        auto result = facebook::jsi::Array(runtime, [(NSArray *)value count]);
-        
-        [((NSArray *)value) enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-            result.setValueAtIndex(runtime, idx, [self convertObjCToJSIValue:obj runtime:runtime]);
-        }];
-        
-        return result;
+        // Use the helper method to create a JSI array
+        return [self createJSIArray:(NSArray *)value runtime:runtime];
     } else if ([value isKindOfClass:[NSDictionary class]]) {
-        auto result = facebook::jsi::Object(runtime);
-        
-        [((NSDictionary *)value) enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-            result.setProperty(runtime, [key UTF8String], [self convertObjCToJSIValue:obj runtime:runtime]);
-        }];
-        
-        return result;
+        // Use the helper method to create a JSI object
+        return [self createJSIObject:(NSDictionary *)value runtime:runtime];
     }
     
     return facebook::jsi::Value::undefined();
