@@ -94,23 +94,14 @@ public:
         return;
     }
     
-    // Get the runtime executor
-    _runtimeExecutor = cxxBridge.runtime;
+    // Minimalist approach - don't try to get direct JSI access
+    RCTLogInfo(@"Using event emitter approach for communication with JavaScript");
     
-    if (_runtimeExecutor) {
-        RCTLogInfo(@"Got runtime executor from RCTCxxBridge");
-        
-        // Use the runtime executor to install JSI bindings
-        __weak ViroFabricContainer *weakSelf = self;
-        _runtimeExecutor([weakSelf](facebook::jsi::Runtime& runtime) {
-            __strong ViroFabricContainer *strongSelf = weakSelf;
-            if (!strongSelf) return;
-            
-            [ViroRuntimeBridge installIntoRuntime:runtime withContainer:strongSelf];
-        });
-    } else {
-        RCTLog(@"[warning] Could not get JSI runtime executor. Some functionality may be limited.");
-    }
+    // Set runtime executor to nullptr - we'll use the event emitter instead
+    _runtimeExecutor = nullptr;
+    
+    // We're not using JSI directly, so we don't need to install JSI bindings
+    RCTLogInfo(@"Using event emitter for communication with JavaScript");
 }
 
 - (void)layoutSubviews {
@@ -180,6 +171,7 @@ public:
 }
 
 #pragma mark - JSI Bindings
+
 
 // This method is no longer used directly - JSI bindings are installed through ViroRuntimeBridge
 - (void)installJSIBindings {
@@ -731,46 +723,16 @@ facebook::jsi::Value ViroHostObject::get(facebook::jsi::Runtime &runtime, const 
 }
 
 - (void)dispatchEventToJS:(NSString *)callbackId withData:(NSDictionary *)data {
-    // Dispatch the event to JS through the runtime executor
-    if (_runtimeExecutor) {
-        // Capture data safely
-        NSString *callbackIdCopy = [callbackId copy];
-        NSDictionary *dataCopy = [data copy];
-        __weak ViroFabricContainer *weakSelf = self;
-        
-        _runtimeExecutor([callbackIdCopy, dataCopy, weakSelf](facebook::jsi::Runtime& runtime) {
-            __strong ViroFabricContainer *strongSelf = weakSelf;
-            if (!strongSelf) return;
-            
-            try {
-                auto global = runtime.global();
-                if (global.hasProperty(runtime, "handleViroEvent")) {
-                    auto handleViroEvent = global.getPropertyAsFunction(runtime, "handleViroEvent");
-                    // Create the JSI string directly without copying
-                    facebook::jsi::String jsCallbackId = facebook::jsi::String::createFromUtf8(runtime, [callbackIdCopy UTF8String]);
-                    
-                    // Convert data to JSI value and use it directly
-                    facebook::jsi::Value jsDataValue = [strongSelf convertObjCToJSIValue:dataCopy runtime:runtime];
-                    
-                    // Call the function with the values (without std::move)
-                    handleViroEvent.call(runtime, jsCallbackId, jsDataValue);
-                } else {
-                    RCTLogError(@"handleViroEvent function not found in global object");
-                }
-            } catch (const std::exception &e) {
-                RCTLogError(@"Error dispatching event to JS: %s", e.what());
-            }
-        });
-    } else if (_bridge) {
-        // Fallback to RCTEventEmitter approach
-        RCTLogInfo(@"JSI runtime executor not available, using event emitter fallback for callback %@", callbackId);
-        
+    // Always use the event emitter approach
+    if (_bridge) {
         // Send event through the ViroFabricManager
         [[ViroFabricManager sharedInstance] sendEventWithName:@"ViroEvent"
                                                          body:@{
                                                              @"callbackId": callbackId,
                                                              @"data": data
                                                          }];
+    } else {
+        RCTLogError(@"Cannot dispatch event: bridge is not available");
     }
 }
 
