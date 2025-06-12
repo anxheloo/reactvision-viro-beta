@@ -43,19 +43,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ViroFabricContainer = void 0;
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
+// Check if New Architecture is enabled
+const isNewArchitectureEnabled = () => {
+    if (global.__turboModuleProxy == null) {
+        throw new Error("Viro: New Architecture is not enabled. This library requires React Native New Architecture. " +
+            "Please enable it in your app by following the instructions at: " +
+            "https://reactnative.dev/docs/new-architecture-intro");
+    }
+    return true;
+};
 // Check if the component exists in UIManager
 const isFabricComponentAvailable = () => {
-    return (react_native_1.UIManager.getViewManagerConfig &&
-        react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer") != null);
+    isNewArchitectureEnabled(); // This will throw if New Architecture is not enabled
+    if (!react_native_1.UIManager.getViewManagerConfig ||
+        react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer") == null) {
+        throw new Error("ViroFabricContainer is not available. Make sure you have installed the native module properly.");
+    }
+    return true;
 };
 // Define the native component
 // @ts-ignore - TypeScript doesn't know about the props of the native component
-const NativeViroFabricContainer = isFabricComponentAvailable()
-    ? (0, react_native_1.requireNativeComponent)("ViroFabricContainer")
-    : () => {
-        console.error("ViroFabricContainer is not available. Make sure you have installed the native module properly.");
-        return null;
-    };
+const NativeViroFabricContainer = (0, react_native_1.requireNativeComponent)("ViroFabricContainer");
 /**
  * ViroFabricContainer is the main component that hosts the Viro rendering engine.
  * It creates a native view that the Viro renderer can draw on and manages the
@@ -66,6 +74,39 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
     const containerRef = (0, react_1.useRef)(null);
     // Root node ID for the scene
     const rootNodeId = (0, react_1.useRef)("viro_root_scene");
+    // Event callback registry
+    const eventCallbacks = (0, react_1.useRef)({});
+    // Set up event handling for fallback event emitter approach
+    (0, react_1.useEffect)(() => {
+        // Set up global event handler for JSI events
+        if (typeof global !== "undefined") {
+            // @ts-ignore - This property will be added by the native code
+            global.handleViroEvent = (callbackId, eventData) => {
+                // Find the callback in the registry and call it
+                const callback = eventCallbacks.current[callbackId];
+                if (callback) {
+                    callback(eventData);
+                }
+            };
+        }
+        // Set up event emitter for fallback approach
+        const eventEmitter = new react_native_1.NativeEventEmitter(react_native_1.NativeModules.ViroFabricManager);
+        const subscription = eventEmitter.addListener("ViroEvent", (event) => {
+            const { callbackId, data } = event;
+            const callback = eventCallbacks.current[callbackId];
+            if (callback) {
+                callback(data);
+            }
+        });
+        return () => {
+            subscription.remove();
+            // Clean up global event handler
+            if (typeof global !== "undefined") {
+                // @ts-ignore - This property was added by us
+                delete global.handleViroEvent;
+            }
+        };
+    }, []);
     // Initialize the Viro system when the component mounts
     (0, react_1.useEffect)(() => {
         if (containerRef.current && isFabricComponentAvailable()) {
@@ -128,16 +169,8 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
             onCameraTransformUpdate(event.nativeEvent);
         }
     };
-    // Check if the native component is available
-    if (!isFabricComponentAvailable()) {
-        console.error("ViroFabricContainer is not available. Make sure you have installed the native module properly and the New Architecture is enabled.");
-        return (<react_native_1.View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <react_native_1.Text>
-          ViroFabricContainer is not available. Please check the console for
-          more information.
-        </react_native_1.Text>
-      </react_native_1.View>);
-    }
+    // This will throw an error if the native component is not available or New Architecture is not enabled
+    isFabricComponentAvailable();
     return (<NativeViroFabricContainer ref={containerRef} style={{ flex: 1 }} onInitialized={handleInitialized} onTrackingUpdated={handleTrackingUpdated} onCameraTransformUpdate={handleCameraTransformUpdate}>
       {children}
     </NativeViroFabricContainer>);

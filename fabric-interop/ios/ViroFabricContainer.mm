@@ -7,17 +7,18 @@
 //
 
 #import "ViroFabricContainer.h"
+#import "ViroFabricManager.h"
 #import <React/RCTLog.h>
 #import <React/RCTUIManager.h>
 #import <React/RCTUtils.h>
 #import <React/RCTBridge+Private.h>
+#import <ReactCommon/RCTTurboModule.h>
+#import <ReactCommon/RCTTurboModuleManager.h>
 #import <jsi/jsi.h>
 
 // Import existing Viro headers
 #import <ViroReact/VRTSceneNavigator.h>
 #import <ViroReact/VRTARSceneNavigator.h>
-// Import VRTManagedAnimation from ViroKit
-#import <ViroKit/VRTManagedAnimation.h>
 
 using namespace facebook::jsi;
 
@@ -46,6 +47,11 @@ using namespace facebook::jsi;
 
 @implementation ViroFabricContainer
 
+// Forward declaration of the runtime bridge class
+@interface ViroRuntimeBridge : NSObject
++ (void)installIntoRuntime:(std::shared_ptr<facebook::jsi::Runtime> *)runtime withContainer:(ViroFabricContainer *)container;
+@end
+
 - (instancetype)initWithBridge:(RCTBridge *)bridge {
     if (self = [super init]) {
         _bridge = bridge;
@@ -53,13 +59,57 @@ using namespace facebook::jsi;
         _eventCallbackRegistry = [NSMutableDictionary new];
         _isAR = NO;
         
-        // Get the JSI runtime
-        _runtime = bridge.jsCallInvoker.runtime();
-        
-        // Install JSI bindings
-        [self installJSIBindings];
+        // Set up the runtime when the bridge is ready
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(bridgeDidFinishLaunch:)
+                                                     name:RCTJavaScriptDidLoadNotification
+                                                   object:bridge];
     }
     return self;
+}
+
+- (void)bridgeDidFinishLaunch:(NSNotification *)notification {
+    // Get the bridge from the notification
+    RCTBridge *bridge = notification.object;
+    if (!bridge || ![bridge isKindOfClass:[RCTBridge class]]) {
+        return;
+    }
+    
+    // Try multiple approaches to get the JSI runtime
+    
+    // Approach 1: Try to get the runtime through TurboModuleManager
+    id<RCTTurboModule> turboModuleManager = [bridge moduleForName:@"RCTTurboModuleManager" lazilyLoadIfNecessary:YES];
+    if (turboModuleManager && [turboModuleManager respondsToSelector:NSSelectorFromString(@"runtime")]) {
+        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[turboModuleManager performSelector:NSSelectorFromString(@"runtime")];
+        if (_runtime) {
+            RCTLogInfo(@"Got runtime through TurboModuleManager");
+            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
+            return;
+        }
+    }
+    
+    // Approach 2: Try to get the runtime through RCTCxxBridge
+    if ([bridge respondsToSelector:NSSelectorFromString(@"runtime")]) {
+        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[bridge performSelector:NSSelectorFromString(@"runtime")];
+        if (_runtime) {
+            RCTLogInfo(@"Got runtime through bridge runtime method");
+            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
+            return;
+        }
+    }
+    
+    // Approach 3: Try to get the runtime through RCTBridge+Private.h
+    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)[RCTBridge currentBridge];
+    if (cxxBridge && [cxxBridge respondsToSelector:NSSelectorFromString(@"runtime")]) {
+        _runtime = (__bridge std::shared_ptr<facebook::jsi::Runtime> *)[cxxBridge performSelector:NSSelectorFromString(@"runtime")];
+        if (_runtime) {
+            RCTLogInfo(@"Got runtime through RCTCxxBridge");
+            [ViroRuntimeBridge installIntoRuntime:_runtime withContainer:self];
+            return;
+        }
+    }
+    
+    RCTLogWarning(@"Could not get JSI runtime. Some functionality may be limited.");
 }
 
 - (void)layoutSubviews {
@@ -89,11 +139,11 @@ using namespace facebook::jsi;
         
         // Set world alignment if specified
         if ([worldAlignment isEqualToString:@"GravityAndHeading"]) {
-            _arSceneNavigator.worldAlignment = VROWorldAlignment::GravityAndHeading;
+            _arSceneNavigator.worldAlignment = @"GravityAndHeading";
         } else if ([worldAlignment isEqualToString:@"Camera"]) {
-            _arSceneNavigator.worldAlignment = VROWorldAlignment::Camera;
+            _arSceneNavigator.worldAlignment = @"Camera";
         } else {
-            _arSceneNavigator.worldAlignment = VROWorldAlignment::Gravity;
+            _arSceneNavigator.worldAlignment = @"Gravity";
         }
     } else {
         _sceneNavigator = [[VRTSceneNavigator alloc] initWithFrame:self.bounds];
@@ -130,23 +180,32 @@ using namespace facebook::jsi;
 
 #pragma mark - JSI Bindings
 
+// This method is no longer used directly - JSI bindings are installed through ViroRuntimeBridge
 - (void)installJSIBindings {
-    if (!_runtime) {
+    RCTLogInfo(@"JSI bindings installation is now handled by ViroRuntimeBridge");
+}
+
+// Implementation of the runtime bridge
+@implementation ViroRuntimeBridge
+
++ (void)installIntoRuntime:(std::shared_ptr<facebook::jsi::Runtime> *)runtimePtr withContainer:(ViroFabricContainer *)container {
+    if (!runtimePtr || !(*runtimePtr)) {
         RCTLogError(@"JSI Runtime not available");
         return;
     }
     
-    auto &runtime = *_runtime;
+    // Get a reference to the runtime
+    facebook::jsi::Runtime &runtime = *(*runtimePtr);
     
     // Create the NativeViro object
-    auto nativeViro = Object(runtime);
+    auto nativeViro = facebook::jsi::Object(runtime);
     
     // Node management functions
     nativeViro.setProperty(runtime, "createViroNode", Function::createFromHostFunction(
         runtime,
         PropNameID::forAscii(runtime, "createViroNode"),
         3,  // nodeId, nodeType, props
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 3) {
                 throw JSError(rt, "createViroNode requires 3 arguments");
             }
@@ -155,10 +214,10 @@ using namespace facebook::jsi;
             NSString *nodeType = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
             
             // Convert props from JSI to NSDictionary
-            id props = [self convertJSIValueToObjC:args[2] runtime:rt];
+            id props = [container convertJSIValueToObjC:args[2] runtime:rt];
             
             // Create the node based on type
-            [self createNode:nodeId ofType:nodeType withProps:props];
+            [container createNode:nodeId ofType:nodeType withProps:props];
             
             return Value::undefined();
         }
@@ -168,7 +227,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "updateViroNode"),
         2,  // nodeId, props
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 2) {
                 throw JSError(rt, "updateViroNode requires 2 arguments");
             }
@@ -176,10 +235,10 @@ using namespace facebook::jsi;
             NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
             
             // Convert props from JSI to NSDictionary
-            id props = [self convertJSIValueToObjC:args[1] runtime:rt];
+            id props = [container convertJSIValueToObjC:args[1] runtime:rt];
             
             // Update the node
-            [self updateNode:nodeId withProps:props];
+            [container updateNode:nodeId withProps:props];
             
             return Value::undefined();
         }
@@ -189,7 +248,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "deleteViroNode"),
         1,  // nodeId
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 1) {
                 throw JSError(rt, "deleteViroNode requires 1 argument");
             }
@@ -197,7 +256,7 @@ using namespace facebook::jsi;
             NSString *nodeId = [NSString stringWithUTF8String:args[0].getString(rt).utf8(rt).c_str()];
             
             // Delete the node
-            [self deleteNode:nodeId];
+            [container deleteNode:nodeId];
             
             return Value::undefined();
         }
@@ -208,7 +267,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "addViroNodeChild"),
         2,  // parentId, childId
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 2) {
                 throw JSError(rt, "addViroNodeChild requires 2 arguments");
             }
@@ -217,7 +276,7 @@ using namespace facebook::jsi;
             NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
             
             // Add child to parent
-            [self addChild:childId toParent:parentId];
+            [container addChild:childId toParent:parentId];
             
             return Value::undefined();
         }
@@ -227,7 +286,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "removeViroNodeChild"),
         2,  // parentId, childId
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 2) {
                 throw JSError(rt, "removeViroNodeChild requires 2 arguments");
             }
@@ -236,7 +295,7 @@ using namespace facebook::jsi;
             NSString *childId = [NSString stringWithUTF8String:args[1].getString(rt).utf8(rt).c_str()];
             
             // Remove child from parent
-            [self removeChild:childId fromParent:parentId];
+            [container removeChild:childId fromParent:parentId];
             
             return Value::undefined();
         }
@@ -247,7 +306,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "registerEventCallback"),
         3,  // nodeId, eventName, callbackId
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 3) {
                 throw JSError(rt, "registerEventCallback requires 3 arguments");
             }
@@ -257,7 +316,7 @@ using namespace facebook::jsi;
             NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
             
             // Register event callback
-            [self registerEventCallback:callbackId forEvent:eventName onNode:nodeId];
+            [container registerEventCallback:callbackId forEvent:eventName onNode:nodeId];
             
             return Value::undefined();
         }
@@ -267,7 +326,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "unregisterEventCallback"),
         3,  // nodeId, eventName, callbackId
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 3) {
                 throw JSError(rt, "unregisterEventCallback requires 3 arguments");
             }
@@ -277,7 +336,7 @@ using namespace facebook::jsi;
             NSString *callbackId = [NSString stringWithUTF8String:args[2].getString(rt).utf8(rt).c_str()];
             
             // Unregister event callback
-            [self unregisterEventCallback:callbackId forEvent:eventName onNode:nodeId];
+            [container unregisterEventCallback:callbackId forEvent:eventName onNode:nodeId];
             
             return Value::undefined();
         }
@@ -288,7 +347,7 @@ using namespace facebook::jsi;
         runtime,
         PropNameID::forAscii(runtime, "initialize"),
         1,  // apiKey
-        [this](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
+        [container](Runtime& rt, const Value& thisValue, const Value* args, size_t count) -> Value {
             if (count < 1) {
                 throw JSError(rt, "initialize requires 1 argument");
             }
@@ -507,29 +566,36 @@ using namespace facebook::jsi;
 }
 
 - (void)dispatchEventToJS:(NSString *)callbackId withData:(NSDictionary *)data {
-    // Use JSI to call the handleViroEvent function in JavaScript
+    // Dispatch the event to JS through the bridge
     if (_runtime) {
         auto &runtime = *_runtime;
         
-        // Convert data to JSI value
-        auto jsData = [self convertObjCToJSIValue:data runtime:runtime];
-        
-        // Call the handleViroEvent function
         try {
             auto global = runtime.global();
             if (global.hasProperty(runtime, "handleViroEvent")) {
                 auto handleViroEvent = global.getPropertyAsFunction(runtime, "handleViroEvent");
-                handleViroEvent.call(runtime, String::createFromUtf8(runtime, [callbackId UTF8String]), jsData);
+                auto jsData = [self convertObjCToJSIValue:data runtime:runtime];
+                handleViroEvent.call(runtime, facebook::jsi::String::createFromUtf8(runtime, [callbackId UTF8String]), jsData);
             } else {
                 RCTLogError(@"handleViroEvent function not found in global object");
             }
         } catch (const std::exception &e) {
             RCTLogError(@"Error dispatching event to JS: %s", e.what());
         }
-    } else {
-        RCTLogError(@"Cannot dispatch event to JS: runtime not available");
+    } else if (_bridge) {
+        // Fallback to RCTEventEmitter approach
+        RCTLogInfo(@"JSI runtime not available, using event emitter fallback for callback %@: %@", callbackId, data);
+        
+        // Send event through the ViroFabricManager
+        [[ViroFabricManager sharedInstance] sendEventWithName:@"ViroEvent"
+                                                         body:@{
+                                                             @"callbackId": callbackId,
+                                                             @"data": data
+                                                         }];
     }
 }
+
+@end
 
 #pragma mark - Utility Methods
 

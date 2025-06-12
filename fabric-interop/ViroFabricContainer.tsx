@@ -6,7 +6,7 @@
  * rendering to the existing native implementation.
  */
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   requireNativeComponent,
   UIManager,
@@ -14,26 +14,43 @@ import {
   Platform,
   View,
   Text,
+  NativeEventEmitter,
+  NativeModules,
 } from "react-native";
+
+// Check if New Architecture is enabled
+const isNewArchitectureEnabled = () => {
+  if (global.__turboModuleProxy == null) {
+    throw new Error(
+      "Viro: New Architecture is not enabled. This library requires React Native New Architecture. " +
+        "Please enable it in your app by following the instructions at: " +
+        "https://reactnative.dev/docs/new-architecture-intro"
+    );
+  }
+  return true;
+};
 
 // Check if the component exists in UIManager
 const isFabricComponentAvailable = () => {
-  return (
-    UIManager.getViewManagerConfig &&
-    UIManager.getViewManagerConfig("ViroFabricContainer") != null
-  );
+  isNewArchitectureEnabled(); // This will throw if New Architecture is not enabled
+
+  if (
+    !UIManager.getViewManagerConfig ||
+    UIManager.getViewManagerConfig("ViroFabricContainer") == null
+  ) {
+    throw new Error(
+      "ViroFabricContainer is not available. Make sure you have installed the native module properly."
+    );
+  }
+
+  return true;
 };
 
 // Define the native component
 // @ts-ignore - TypeScript doesn't know about the props of the native component
-const NativeViroFabricContainer = isFabricComponentAvailable()
-  ? requireNativeComponent<any>("ViroFabricContainer")
-  : () => {
-      console.error(
-        "ViroFabricContainer is not available. Make sure you have installed the native module properly."
-      );
-      return null;
-    };
+const NativeViroFabricContainer = requireNativeComponent<any>(
+  "ViroFabricContainer"
+);
 
 // Props for the container
 export interface ViroFabricContainerProps {
@@ -78,6 +95,45 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
 
   // Root node ID for the scene
   const rootNodeId = useRef<string>("viro_root_scene");
+
+  // Event callback registry
+  const eventCallbacks = useRef<Record<string, (event: any) => void>>({});
+
+  // Set up event handling for fallback event emitter approach
+  useEffect(() => {
+    // Set up global event handler for JSI events
+    if (typeof global !== "undefined") {
+      // @ts-ignore - This property will be added by the native code
+      global.handleViroEvent = (callbackId: string, eventData: any) => {
+        // Find the callback in the registry and call it
+        const callback = eventCallbacks.current[callbackId];
+        if (callback) {
+          callback(eventData);
+        }
+      };
+    }
+
+    // Set up event emitter for fallback approach
+    const eventEmitter = new NativeEventEmitter(
+      NativeModules.ViroFabricManager
+    );
+    const subscription = eventEmitter.addListener("ViroEvent", (event) => {
+      const { callbackId, data } = event;
+      const callback = eventCallbacks.current[callbackId];
+      if (callback) {
+        callback(data);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      // Clean up global event handler
+      if (typeof global !== "undefined") {
+        // @ts-ignore - This property was added by us
+        delete global.handleViroEvent;
+      }
+    };
+  }, []);
 
   // Initialize the Viro system when the component mounts
   useEffect(() => {
@@ -158,20 +214,8 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
     }
   };
 
-  // Check if the native component is available
-  if (!isFabricComponentAvailable()) {
-    console.error(
-      "ViroFabricContainer is not available. Make sure you have installed the native module properly and the New Architecture is enabled."
-    );
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>
-          ViroFabricContainer is not available. Please check the console for
-          more information.
-        </Text>
-      </View>
-    );
-  }
+  // This will throw an error if the native component is not available or New Architecture is not enabled
+  isFabricComponentAvailable();
 
   return (
     <NativeViroFabricContainer
