@@ -57,14 +57,14 @@ const isNewArchitectureEnabled = () => {
 const isFabricComponentAvailable = () => {
     isNewArchitectureEnabled(); // This will throw if New Architecture is not enabled
     if (!react_native_1.UIManager.getViewManagerConfig ||
-        react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer") == null) {
-        throw new Error("ViroFabricContainer is not available. Make sure you have installed the native module properly.");
+        react_native_1.UIManager.getViewManagerConfig("ViroFabricContainerView") == null) {
+        throw new Error("ViroFabricContainerView is not available. Make sure you have installed the native module properly.");
     }
     return true;
 };
 // Define the native component
 // @ts-ignore - TypeScript doesn't know about the props of the native component
-const NativeViroFabricContainer = (0, react_native_1.requireNativeComponent)("ViroFabricContainer");
+const NativeViroFabricContainer = (0, react_native_1.requireNativeComponent)("ViroFabricContainerView");
 /**
  * ViroFabricContainer is the main component that hosts the Viro rendering engine.
  * It creates a native view that the Viro renderer can draw on and manages the
@@ -125,32 +125,14 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
                 return;
             }
             try {
-                // Get the command ID based on platform
-                let commandId;
-                if (react_native_1.Platform.OS === "ios") {
-                    const viewConfig = react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer");
-                    if (!viewConfig ||
-                        !viewConfig.Commands ||
-                        !viewConfig.Commands.initialize) {
-                        console.error("Initialize command not found in ViroFabricContainer view config");
-                        return;
-                    }
-                    commandId = viewConfig.Commands.initialize;
-                }
-                else {
-                    // Android
-                    // Use type assertion to access ViroFabricContainer on UIManager
-                    const uiManagerAny = react_native_1.UIManager;
-                    if (!uiManagerAny.ViroFabricContainer ||
-                        !uiManagerAny.ViroFabricContainer.Commands) {
-                        console.error("ViroFabricContainer commands not found in UIManager");
-                        return;
-                    }
-                    commandId =
-                        uiManagerAny.ViroFabricContainer.Commands.initialize.toString();
+                // Use the codegenNativeCommands approach for New Architecture
+                const ViroFabricContainerCommands = react_native_1.UIManager.getViewManagerConfig("ViroFabricContainerView").Commands;
+                if (!ViroFabricContainerCommands) {
+                    console.error("ViroFabricContainerView commands not found in UIManager");
+                    return;
                 }
                 // Call the native method to initialize
-                react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, commandId, [
+                react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, ViroFabricContainerCommands.initialize, [
                     apiKey || "",
                     debug || false,
                     arEnabled || false,
@@ -168,30 +150,15 @@ const ViroFabricContainer = ({ apiKey, debug = false, arEnabled = false, worldAl
                 if (!nodeHandle)
                     return;
                 try {
-                    // Get the command ID based on platform
-                    let commandId;
-                    if (react_native_1.Platform.OS === "ios") {
-                        const viewConfig = react_native_1.UIManager.getViewManagerConfig("ViroFabricContainer");
-                        if (!viewConfig ||
-                            !viewConfig.Commands ||
-                            !viewConfig.Commands.cleanup) {
-                            return;
-                        }
-                        commandId = viewConfig.Commands.cleanup;
-                    }
-                    else {
-                        // Android
-                        // Use type assertion to access ViroFabricContainer on UIManager
-                        const uiManagerAny = react_native_1.UIManager;
-                        if (!uiManagerAny.ViroFabricContainer ||
-                            !uiManagerAny.ViroFabricContainer.Commands) {
-                            return;
-                        }
-                        commandId =
-                            uiManagerAny.ViroFabricContainer.Commands.cleanup.toString();
+                    // Use the same approach as initialize for cleanup
+                    const ViroFabricContainerCommands = react_native_1.UIManager.getViewManagerConfig("ViroFabricContainerView").Commands;
+                    if (!ViroFabricContainerCommands ||
+                        !ViroFabricContainerCommands.cleanup) {
+                        console.error("ViroFabricContainerView cleanup command not found in UIManager");
+                        return;
                     }
                     // Call the native method to cleanup
-                    react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, commandId, []);
+                    react_native_1.UIManager.dispatchViewManagerCommand(nodeHandle, ViroFabricContainerCommands.cleanup, []);
                 }
                 catch (error) {
                     console.error("Failed to cleanup ViroFabricContainer:", error);

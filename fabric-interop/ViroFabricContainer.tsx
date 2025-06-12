@@ -38,10 +38,10 @@ const isFabricComponentAvailable = () => {
 
   if (
     !UIManager.getViewManagerConfig ||
-    UIManager.getViewManagerConfig("ViroFabricContainer") == null
+    UIManager.getViewManagerConfig("ViroFabricContainerView") == null
   ) {
     throw new Error(
-      "ViroFabricContainer is not available. Make sure you have installed the native module properly."
+      "ViroFabricContainerView is not available. Make sure you have installed the native module properly."
     );
   }
 
@@ -51,7 +51,7 @@ const isFabricComponentAvailable = () => {
 // Define the native component
 // @ts-ignore - TypeScript doesn't know about the props of the native component
 const NativeViroFabricContainer = requireNativeComponent<any>(
-  "ViroFabricContainer"
+  "ViroFabricContainerView"
 );
 
 // Props for the container
@@ -157,48 +157,29 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
       }
 
       try {
-        // Get the command ID based on platform
-        let commandId;
+        // Use the codegenNativeCommands approach for New Architecture
+        const ViroFabricContainerCommands = UIManager.getViewManagerConfig(
+          "ViroFabricContainerView"
+        ).Commands;
 
-        if (Platform.OS === "ios") {
-          const viewConfig = UIManager.getViewManagerConfig(
-            "ViroFabricContainer"
+        if (!ViroFabricContainerCommands) {
+          console.error(
+            "ViroFabricContainerView commands not found in UIManager"
           );
-          if (
-            !viewConfig ||
-            !viewConfig.Commands ||
-            !viewConfig.Commands.initialize
-          ) {
-            console.error(
-              "Initialize command not found in ViroFabricContainer view config"
-            );
-            return;
-          }
-          commandId = viewConfig.Commands.initialize;
-        } else {
-          // Android
-          // Use type assertion to access ViroFabricContainer on UIManager
-          const uiManagerAny = UIManager as any;
-          if (
-            !uiManagerAny.ViroFabricContainer ||
-            !uiManagerAny.ViroFabricContainer.Commands
-          ) {
-            console.error(
-              "ViroFabricContainer commands not found in UIManager"
-            );
-            return;
-          }
-          commandId =
-            uiManagerAny.ViroFabricContainer.Commands.initialize.toString();
+          return;
         }
 
         // Call the native method to initialize
-        UIManager.dispatchViewManagerCommand(nodeHandle, commandId, [
-          apiKey || "",
-          debug || false,
-          arEnabled || false,
-          worldAlignment || "Gravity",
-        ]);
+        UIManager.dispatchViewManagerCommand(
+          nodeHandle,
+          ViroFabricContainerCommands.initialize,
+          [
+            apiKey || "",
+            debug || false,
+            arEnabled || false,
+            worldAlignment || "Gravity",
+          ]
+        );
       } catch (error) {
         console.error("Failed to initialize ViroFabricContainer:", error);
       }
@@ -211,37 +192,27 @@ export const ViroFabricContainer: React.FC<ViroFabricContainerProps> = ({
         if (!nodeHandle) return;
 
         try {
-          // Get the command ID based on platform
-          let commandId;
+          // Use the same approach as initialize for cleanup
+          const ViroFabricContainerCommands = UIManager.getViewManagerConfig(
+            "ViroFabricContainerView"
+          ).Commands;
 
-          if (Platform.OS === "ios") {
-            const viewConfig = UIManager.getViewManagerConfig(
-              "ViroFabricContainer"
+          if (
+            !ViroFabricContainerCommands ||
+            !ViroFabricContainerCommands.cleanup
+          ) {
+            console.error(
+              "ViroFabricContainerView cleanup command not found in UIManager"
             );
-            if (
-              !viewConfig ||
-              !viewConfig.Commands ||
-              !viewConfig.Commands.cleanup
-            ) {
-              return;
-            }
-            commandId = viewConfig.Commands.cleanup;
-          } else {
-            // Android
-            // Use type assertion to access ViroFabricContainer on UIManager
-            const uiManagerAny = UIManager as any;
-            if (
-              !uiManagerAny.ViroFabricContainer ||
-              !uiManagerAny.ViroFabricContainer.Commands
-            ) {
-              return;
-            }
-            commandId =
-              uiManagerAny.ViroFabricContainer.Commands.cleanup.toString();
+            return;
           }
 
           // Call the native method to cleanup
-          UIManager.dispatchViewManagerCommand(nodeHandle, commandId, []);
+          UIManager.dispatchViewManagerCommand(
+            nodeHandle,
+            ViroFabricContainerCommands.cleanup,
+            []
+          );
         } catch (error) {
           console.error("Failed to cleanup ViroFabricContainer:", error);
         }

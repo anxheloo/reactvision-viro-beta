@@ -26,6 +26,9 @@ android {
         buildConfig true
     }
     
+    // Note: React Native's Codegen is configured through the main app's build.gradle
+    // We don't need to configure it here
+    
     defaultConfig {
         minSdkVersion 24
         targetSdkVersion 33
