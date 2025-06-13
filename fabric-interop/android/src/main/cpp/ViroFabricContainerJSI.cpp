@@ -1,8 +1,12 @@
+// Use the Prefab-provided headers
 #include <fbjni/fbjni.h>
 #include <jsi/jsi.h>
-#include <ReactCommon/CallInvokerHolder.h>
 #include <react/jni/ReadableNativeMap.h>
 #include <react/jni/WritableNativeMap.h>
+#include <react/jni/JMessageQueueThread.h>
+#include <react/jni/NativeMap.h>
+#include <react/nativemodule/core/ReactCommon/CallInvokerHolder.h>
+#include <android/log.h>
 
 using namespace facebook::jni;
 using namespace facebook::jsi;

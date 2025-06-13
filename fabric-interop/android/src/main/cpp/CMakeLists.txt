@@ -40,7 +40,7 @@ if(NOT EXISTS "${NODE_MODULES_DIR}/react-native")
     message(FATAL_ERROR "React Native directory not found at ${NODE_MODULES_DIR}/react-native")
 endif()
 
-# Direct inclusion of React Native headers instead of using find_package
+# Direct inclusion of React Native headers
 # This is more reliable across different React Native versions and setups
 
 # Add React Native directories to include path
@@ -55,7 +55,11 @@ include_directories(
     
     # Android-specific headers
     "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/react/jni"
+    
+    # fbjni headers - try multiple possible locations
     "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/first-party/fbjni/headers"
+    "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/java/com/facebook/react/turbomodule/core/jni"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi/jni"
     
     # New Architecture headers
     "${NODE_MODULES_DIR}/react-native/ReactCommon/react/renderer/components/view"
@@ -64,11 +68,6 @@ include_directories(
     "${NODE_MODULES_DIR}/react-native/ReactCommon/react/renderer/debug"
     "${NODE_MODULES_DIR}/react-native/ReactCommon/yoga"
 )
-
-# Find required libraries
-find_library(FBJNI_LIB fbjni PATHS ${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/first-party/fbjni/jni)
-find_library(REACT_NATIVE_JNI reactnativejni PATHS ${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/react/jni)
-find_library(JSI_LIB jsi PATHS ${NODE_MODULES_DIR}/react-native/ReactAndroid/build/intermediates/library_jni/debug/jni)
 
 # Add Android log library
 find_library(log-lib log)
@@ -82,7 +81,9 @@ add_library(
 
 # Define preprocessor macros
 target_compile_definitions(viro-fabric-jsi PRIVATE
-    REACT_NATIVE_VERSION=0.76.9
+    # Use a generic version identifier to avoid version-specific issues
+    REACT_NATIVE_VERSION_MAJOR=0
+    REACT_NATIVE_VERSION_MINOR=76
     IS_NEW_ARCHITECTURE_ENABLED=1
 )
 
@@ -93,9 +94,7 @@ target_link_libraries(
     android
     ${log-lib}
     
-    # If the specific libraries were found, link against them
-    # Otherwise, we'll rely on the Android build system to find them
-    $<$<BOOL:${FBJNI_LIB}>:${FBJNI_LIB}>
-    $<$<BOOL:${REACT_NATIVE_JNI}>:${REACT_NATIVE_JNI}>
-    $<$<BOOL:${JSI_LIB}>:${JSI_LIB}>
+    # These libraries are provided by the main React Native dependency
+    # We don't need to explicitly link against them as they're resolved at runtime
+    # through the main React Native library
 )

@@ -77,13 +77,19 @@ repositories {
 }
 
 dependencies {
-    // Use a specific version of React Native for stability
-    def reactNativeVersion = rootProject.ext.has("reactNativeVersion") ? rootProject.ext.get("reactNativeVersion") : "0.76.9"
+    // Get React Native version from the root project or use a flexible version constraint
+    def reactNativeVersion = rootProject.ext.has("reactNativeVersion") ? rootProject.ext.get("reactNativeVersion") : "+"
+    
+    // Main React Native dependency - this includes all the native libraries we need
     implementation "com.facebook.react:react-android:$reactNativeVersion"
     
-    // Required for React Native 0.76.9+ with New Architecture
+    // Required for React Native with New Architecture
     implementation "com.facebook.react:react-native-gradle-plugin"
     implementation "com.facebook.react:hermes-engine"
+    
+    // Note: We don't need to explicitly depend on fbjni, jsi, turbomodule-core, or react-native-jni
+    // These are all included in the main react-android package
+    // Our C++ code will find the headers through the include paths in CMakeLists.txt
     
     // No need to explicitly depend on react_viro and viro_renderer
     // They are already available at the app level when Viro is integrated
