@@ -91,6 +91,12 @@ dependencies {
     // These are all included in the main react-android package
     // Our C++ code will find the headers through the include paths in CMakeLists.txt
     
-    // No need to explicitly depend on react_viro and viro_renderer
-    // They are already available at the app level when Viro is integrated
+    // Instead of using project dependencies which require settings.gradle entries,
+    // use compileOnly dependencies that will be available at runtime from the main app
+    compileOnly fileTree(dir: project.rootDir.parentFile.path + "/android/viro_bridge/build/outputs/aar/", include: ['*.aar'])
+    compileOnly fileTree(dir: project.rootDir.parentFile.path + "/android/viro_renderer/build/outputs/aar/", include: ['*.aar'])
+    
+    // For development/compilation only - these dependencies won't be included in the final artifact
+    compileOnly files(project.rootDir.parentFile.path + "/android/viro_bridge/build/intermediates/compile_library_classes/debug/classes.jar")
+    compileOnly files(project.rootDir.parentFile.path + "/android/viro_renderer/build/intermediates/compile_library_classes/debug/classes.jar")
 }

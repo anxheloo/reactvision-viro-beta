@@ -19,6 +19,11 @@ import com.facebook.react.bridge.RuntimeExecutor;
 import com.viromedia.bridge.component.VRTSceneNavigator;
 import com.viromedia.bridge.component.VRTARSceneNavigator;
 import com.viromedia.bridge.component.VRTVRSceneNavigator;
+import com.viromedia.bridge.component.node.VRTNode;
+import com.viromedia.bridge.component.node.VRTScene;
+import com.viromedia.bridge.component.node.VRTARScene;
+import com.viromedia.bridge.component.node.control.VRTBox;
+import com.viromedia.bridge.utility.ComponentEventDelegate.VRTEventListener;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -251,7 +256,7 @@ public class ViroFabricContainer extends FrameLayout {
             // For scene nodes, we need to create a VRTScene and set it on the navigator
             if (mSceneNavigator != null) {
                 // Create a scene using the existing VRTScene implementation
-                com.viromedia.bridge.component.VRTScene scene = new com.viromedia.bridge.component.VRTScene(mReactContext);
+                VRTScene scene = new VRTScene(mReactContext);
                 scene.setProps(props);
                 mSceneNavigator.setScene(scene);
                 mNodeRegistry.put(nodeId, scene);
@@ -260,7 +265,7 @@ public class ViroFabricContainer extends FrameLayout {
             // For AR scene nodes, we need to create a VRTARScene and set it on the navigator
             if (mARSceneNavigator != null) {
                 // Create an AR scene using the existing VRTARScene implementation
-                com.viromedia.bridge.component.VRTARScene arScene = new com.viromedia.bridge.component.VRTARScene(mReactContext);
+                VRTARScene arScene = new VRTARScene(mReactContext);
                 arScene.setProps(props);
                 mARSceneNavigator.setScene(arScene);
                 mNodeRegistry.put(nodeId, arScene);
@@ -270,7 +275,7 @@ public class ViroFabricContainer extends FrameLayout {
             // This would delegate to the existing VRT node creation logic
             // For example, for a box:
             if ("box".equals(nodeType)) {
-                com.viromedia.bridge.component.VRTBox box = new com.viromedia.bridge.component.VRTBox(mReactContext);
+                VRTBox box = new VRTBox(mReactContext);
                 box.setProps(props);
                 mNodeRegistry.put(nodeId, box);
             }
@@ -291,8 +296,8 @@ public class ViroFabricContainer extends FrameLayout {
         }
         
         // If the node is a VRT node, update its properties
-        if (node instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+        if (node instanceof VRTNode) {
+            VRTNode vrtNode = (VRTNode) node;
             vrtNode.setProps(props);
         } else {
             // If it's just a dictionary (for nodes we don't have a VRT class for yet),
@@ -317,8 +322,8 @@ public class ViroFabricContainer extends FrameLayout {
         }
         
         // If the node is a VRT node, remove it from its parent
-        if (node instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+        if (node instanceof VRTNode) {
+            VRTNode vrtNode = (VRTNode) node;
             ViewGroup parent = (ViewGroup) vrtNode.getParent();
             if (parent != null) {
                 parent.removeView(vrtNode);
@@ -344,9 +349,9 @@ public class ViroFabricContainer extends FrameLayout {
         }
         
         // If both parent and child are VRT nodes, add the child to the parent
-        if (parent instanceof com.viromedia.bridge.component.VRTNode && child instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode parentNode = (com.viromedia.bridge.component.VRTNode) parent;
-            com.viromedia.bridge.component.VRTNode childNode = (com.viromedia.bridge.component.VRTNode) child;
+        if (parent instanceof VRTNode && child instanceof VRTNode) {
+            VRTNode parentNode = (VRTNode) parent;
+            VRTNode childNode = (VRTNode) child;
             parentNode.addView(childNode);
         } else {
             // If they're not both VRT nodes, update the parent-child relationship in the registry
@@ -375,9 +380,9 @@ public class ViroFabricContainer extends FrameLayout {
         }
         
         // If both parent and child are VRT nodes, remove the child from the parent
-        if (parent instanceof com.viromedia.bridge.component.VRTNode && child instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode parentNode = (com.viromedia.bridge.component.VRTNode) parent;
-            com.viromedia.bridge.component.VRTNode childNode = (com.viromedia.bridge.component.VRTNode) child;
+        if (parent instanceof VRTNode && child instanceof VRTNode) {
+            VRTNode parentNode = (VRTNode) parent;
+            VRTNode childNode = (VRTNode) child;
             parentNode.removeView(childNode);
         } else {
             // If they're not both VRT nodes, update the parent-child relationship in the registry
@@ -408,11 +413,11 @@ public class ViroFabricContainer extends FrameLayout {
         mEventCallbackRegistry.put(key, callbackId);
         
         // If the node is a VRT node, register the event callback
-        if (node instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+        if (node instanceof VRTNode) {
+            VRTNode vrtNode = (VRTNode) node;
             
             // Create a callback that will dispatch the event to JS
-            com.viromedia.bridge.component.VRTEventListener listener = new com.viromedia.bridge.component.VRTEventListener() {
+            VRTEventListener listener = new VRTEventListener() {
                 @Override
                 public void onEvent(Map<String, Object> event) {
                     // Convert the event to a ReadableMap
@@ -458,8 +463,8 @@ public class ViroFabricContainer extends FrameLayout {
         mEventCallbackRegistry.remove(key);
         
         // If the node is a VRT node, unregister the event callback
-        if (node instanceof com.viromedia.bridge.component.VRTNode) {
-            com.viromedia.bridge.component.VRTNode vrtNode = (com.viromedia.bridge.component.VRTNode) node;
+        if (node instanceof VRTNode) {
+            VRTNode vrtNode = (VRTNode) node;
             
             // Unregister the event callback from the node
             vrtNode.removeEventListener(eventName);
